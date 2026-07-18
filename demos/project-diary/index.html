@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ημερολόγιο Έργων — LaFlow</title>
+<link rel="icon" href="data:,">
+<style>
+  /* ============================================================
+     LF-02 — ΗΜΕΡΟΛΟΓΙΟ ΕΡΓΩΝ (project diary / calendar) · LaFlow
+     REDESIGN pass — "field journal" editorial direction.
+     Same functional MVP as laflow-demos/built/project-diary
+     (month grid + drill-in panel + simulated AI + quick-add notes),
+     rebuilt with a distinctive visual language: ledger-row event
+     chips (left accent bar, not solid pills), a node-and-connector
+     phase ladder, a unified control-deck toolbar, subtle inline-SVG
+     paper grain, and polaroid-tilt photo textures.
+     Offline, zero network deps, Greek UI, English code.
+     Fonts via local fallback stacks ONLY (no font downloads).
+     ============================================================ */
+  :root{
+    --forest-deep:#12302a;
+    --forest:#1a3c34;
+    --sage:#8a9a5b;
+    --sage-light:#a3b18a;
+    --cream:#faf6ee;
+    --cream-alt:#f3eee1;
+    --ink:#233028;
+    --ink-soft:#4d5b50;
+    --terracotta:#bb6b3d;
+    --terracotta-deep:#a05526;  /* AA-safe CTA background with white text */
+    --gold:#b59445;
+    --gold-deep:#8a6d2a;        /* AA-safe gold on cream/paper */
+    --line:rgba(26,60,52,.14);
+    --line-strong:rgba(26,60,52,.26);
+    --paper:#fffdf7;
+    --danger:#9c3f2b;
+    /* project colors — all AA-safe with white text at chip sizes; kept
+       identical to the shared LaFlow demo universe for continuity */
+    --p-ekali:#1a3c34;
+    --p-marousi:#a05526;
+    --p-kolonaki:#8a6d2a;
+    --p-kifisia:#5c7037;
+    --serif:'Cormorant Garamond','Times New Roman',serif;
+    --sans:'Inter',system-ui,sans-serif;
+    --radius:10px;
+    --radius-lg:16px;
+    --topbar-h:76px;
+    --shadow-card:0 2px 4px rgba(18,48,42,.06),0 14px 32px rgba(18,48,42,.08);
+    --shadow-deep:0 20px 60px rgba(18,48,42,.22);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{min-height:100%}
+  body{
+    font-family:var(--sans);background-color:var(--cream);color:var(--ink);
+    line-height:1.55;-webkit-font-smoothing:antialiased;font-size:17.5px;
+    overflow-x:hidden;
+    /* subtle ambient warmth + a whisper of paper grain (inline SVG feTurbulence,
+       zero network) — kept behind card surfaces so text contrast is untouched */
+    background-image:
+      radial-gradient(ellipse 900px 480px at 6% -8%, rgba(138,154,91,.07), transparent 58%),
+      radial-gradient(ellipse 760px 460px at 102% 6%, rgba(181,148,69,.055), transparent 56%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.035 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-repeat:no-repeat,no-repeat,repeat;
+    background-size:auto,auto,170px 170px;
+  }
+  ::selection{background:var(--sage-light);color:var(--forest-deep)}
+  button{font-family:inherit;cursor:pointer}
+  input,select,textarea{font-family:inherit}
+  .serif{font-family:var(--serif)}
+
+  /* ============ TOP BAR (LaFlow app chrome) ============ */
+  .topbar{
+    min-height:var(--topbar-h);color:var(--cream);
+    display:flex;align-items:center;gap:22px;padding:11px 28px;
+    background-color:var(--forest-deep);
+    background-image:
+      radial-gradient(ellipse 480px 220px at 10% -40%, rgba(163,177,138,.14), transparent 60%),
+      radial-gradient(ellipse 420px 220px at 106% 140%, rgba(181,148,69,.12), transparent 60%);
+    border-bottom:1px solid rgba(181,148,69,.3);
+    box-shadow:0 1px 0 rgba(0,0,0,.18);
+  }
+  .brand{display:flex;align-items:center;gap:13px;flex:none}
+  .brand .mark{width:44px;height:44px;border-radius:12px;background:var(--forest);border:1.5px solid rgba(181,148,69,.55);display:grid;place-items:center;flex:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.03)}
+  .brand .mark svg{width:24px;height:24px;color:var(--sage-light)}
+  .brand .nm{font-family:var(--serif);font-weight:600;font-size:28px;line-height:1;color:var(--cream)}
+  .brand .nm b{color:var(--gold);font-weight:600}
+  .topbar .feat{min-width:0;padding-left:18px;border-left:1px solid rgba(163,177,138,.28)}
+  .topbar .feat h1{font-family:var(--serif);font-weight:600;font-size:25px;line-height:1.1;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .topbar .feat p{font-size:13.5px;color:var(--sage-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .topbar .spacer{flex:1}
+  .topbar .demo-tag{flex:none;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--sage-light);border:1px solid rgba(163,177,138,.4);padding:7px 13px;border-radius:999px;white-space:nowrap;background:rgba(0,0,0,.1)}
+
+  /* ============ PAGE ============ */
+  .page{max-width:1280px;margin:0 auto;padding:26px 26px 72px}
+
+  /* ---- control deck: month-nav + filters unified into one card ---- */
+  .control-deck{
+    background:var(--paper);border:1px solid var(--line);border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-card);padding:16px 18px;margin-bottom:18px;
+  }
+  .deck-row + .deck-row{margin-top:13px;padding-top:13px;border-top:1px dashed var(--line)}
+
+  .monthbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .mnav{
+    width:48px;height:48px;flex:none;border:1.5px solid var(--line-strong);border-radius:var(--radius);
+    background:#fff;color:var(--forest);display:grid;place-items:center;transition:all .15s;
+  }
+  .mnav svg{width:20px;height:20px}
+  .mnav:hover:not(:disabled){border-color:var(--forest);background:var(--cream-alt)}
+  .mnav:disabled{opacity:.3;cursor:default}
+  #monthTitle{font-family:var(--serif);font-weight:600;font-size:39px;color:var(--forest);line-height:1.02;min-width:230px}
+  .today-btn{
+    min-height:48px;padding:9px 19px;border:1.5px solid var(--forest);border-radius:999px;background:#fff;
+    color:var(--forest);font-weight:700;font-size:15.5px;display:inline-flex;align-items:center;gap:8px;transition:all .15s;
+  }
+  .today-btn svg{width:17px;height:17px}
+  .today-btn:hover{background:var(--forest);color:#fff}
+  .viscount{margin-left:auto;font-size:14.5px;color:var(--ink-soft)}
+
+  /* filters */
+  .filters{display:flex;flex-direction:column;gap:11px}
+  .frow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .flabel{font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-right:4px}
+  .fchip{
+    min-height:46px;padding:9px 16px;border-radius:999px;border:1.5px solid var(--line-strong);
+    background:#fff;color:var(--ink);font-size:15.5px;font-weight:600;
+    display:inline-flex;align-items:center;gap:8px;transition:all .14s;
+  }
+  .fchip:hover{border-color:var(--forest)}
+  .fchip .dot{width:13px;height:13px;border-radius:50%;background:var(--pc,var(--forest));flex:none;border:1px solid rgba(0,0,0,.12)}
+  .fchip svg{width:17px;height:17px;flex:none}
+  .pchip[aria-pressed="true"]{background:var(--pc,var(--forest));border-color:var(--pc,var(--forest));color:#fff}
+  .pchip[aria-pressed="true"] .dot{background:#fff;border-color:rgba(255,255,255,.7)}
+  .allchip[aria-pressed="true"]{background:var(--forest);border-color:var(--forest);color:#fff}
+  .tchip{color:var(--ink-soft)}
+  .tchip[aria-pressed="true"]{background:var(--forest);border-color:var(--forest);color:#fff}
+
+  /* ============ CALENDAR CARD ============ */
+  .calcard{background:#fff;border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);padding:16px 16px 18px}
+  .emptybar{
+    display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--cream-alt);
+    border:1.5px dashed var(--line-strong);border-radius:12px;padding:12px 16px;margin-bottom:12px;font-size:16px;color:var(--ink);
+  }
+  .emptybar[hidden]{display:none}
+  .emptybar button{
+    min-height:44px;padding:8px 16px;border:none;border-radius:var(--radius);background:var(--forest);
+    color:#fff;font-weight:600;font-size:14.5px;
+  }
+  .emptybar button:hover{background:var(--forest-deep)}
+  .dowrow{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .dowrow span{text-align:center;font-size:12.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-soft);font-weight:700;padding:6px 0}
+  #grid{display:grid;grid-template-columns:repeat(7,1fr);gap:7px}
+  .cell{
+    position:relative;min-height:140px;border:1px solid var(--line);border-radius:12px;background:#fff;
+    padding:9px;display:flex;flex-direction:column;gap:7px;text-align:left;cursor:pointer;
+    transition:border-color .15s,box-shadow .15s,transform .15s;min-width:0;
+    animation:cellIn .32s ease-out backwards;animation-delay:min(calc((var(--i,1) - 1) * 9ms),210ms);
+  }
+  @keyframes cellIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+  .cell:hover{border-color:var(--forest);box-shadow:0 4px 14px rgba(18,48,42,.08)}
+  .cell:focus-visible{outline:3px solid var(--forest);outline-offset:1px}
+  .cell.we{background:#fcfaf3}
+  .cell.out{background:transparent;border-style:dashed;opacity:.38;cursor:default;pointer-events:none;animation:none}
+  .cell.today{border:2px solid var(--forest);box-shadow:0 0 0 3px rgba(26,60,52,.13)}
+  .dhead{display:flex;align-items:center;gap:7px;flex:none}
+  .dnum{font-weight:700;font-size:17.5px;color:var(--ink);width:32px;height:32px;display:grid;place-items:center;border-radius:50%;flex:none;font-variant-numeric:tabular-nums}
+  .cell.today .dnum{background:var(--forest);color:#fff;box-shadow:0 0 0 3px rgba(26,60,52,.15)}
+  .tdy{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--forest);background:var(--cream-alt);border:1px solid var(--line);padding:3px 8px;border-radius:999px}
+  .evchips{display:flex;flex-direction:column;gap:5px;min-width:0}
+  /* ledger-row event chip: left accent bar on near-white, not a candy pill —
+     reads as a journal line-item; color is never the only cue (icon always present) */
+  .evchip{
+    display:flex;align-items:center;gap:7px;background:var(--paper);color:var(--ink);
+    border:1px solid var(--line);border-left:3px solid var(--pc,var(--forest));
+    border-radius:7px;padding:5px 9px 5px 8px;font-size:17px;font-weight:600;line-height:1.2;min-width:0;
+  }
+  .evchip svg{width:14.5px;height:14.5px;flex:none;color:var(--pc,var(--forest))}
+  .evchip .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .evchip.note{background:var(--cream-alt);border-style:dashed;border-color:var(--line-strong);border-left-style:solid;border-left-color:var(--pc,var(--forest))}
+  .more{
+    min-height:44px;border:1.5px dashed var(--line-strong);background:var(--cream-alt);border-radius:8px;
+    color:var(--forest);font-weight:700;font-size:14.5px;transition:border-color .15s;
+  }
+  .more:hover{border-color:var(--forest)}
+  .dots{display:none}
+  .cbadge{display:none}
+  @keyframes flashcell{0%{box-shadow:0 0 0 7px rgba(187,107,61,.55)}100%{box-shadow:0 0 0 3px rgba(26,60,52,.12)}}
+  .cell.flash{animation:flashcell 1s ease-out 2}
+
+  /* legend row */
+  .legend{display:flex;gap:15px;flex-wrap:wrap;margin-top:14px;font-size:14.5px;color:var(--ink-soft);align-items:center}
+  .legend .li{display:inline-flex;gap:7px;align-items:center}
+  .legend .dot{width:12px;height:12px;border-radius:50%;background:var(--pc);border:1px solid rgba(0,0,0,.12);flex:none}
+
+  /* ============ DRILL-IN PANEL (field journal) ============ */
+  .overlay{position:fixed;inset:0;z-index:110;background:rgba(18,48,42,.48);opacity:0;visibility:hidden;transition:opacity .22s,visibility .22s}
+  body.panel-open .overlay{opacity:1;visibility:visible}
+  body.panel-open{overflow:hidden}
+  .panel{
+    position:fixed;top:0;right:0;bottom:0;z-index:120;width:min(560px,100vw);background:var(--paper);
+    box-shadow:var(--shadow-deep);transform:translateX(105%);visibility:hidden;
+    transition:transform .32s cubic-bezier(.4,0,.2,1),visibility .32s;
+  }
+  body.panel-open .panel{transform:none;visibility:visible}
+  .p-inner{display:flex;flex-direction:column;width:100%;height:100%}
+  .p-head{padding:18px 22px 16px;border-bottom:3px solid var(--pc,var(--forest));background:#fff;flex:none}
+  .p-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .p-kick{font-size:12px;letter-spacing:.17em;text-transform:uppercase;color:var(--gold-deep);font-weight:700;padding-top:12px}
+  .p-close{
+    min-width:44px;min-height:44px;flex:none;border:1.5px solid var(--line-strong);background:#fff;color:var(--ink-soft);
+    border-radius:var(--radius);display:grid;place-items:center;transition:all .14s;
+  }
+  .p-close:hover{color:var(--forest);border-color:var(--forest);background:var(--cream-alt)}
+  .p-close svg{width:19px;height:19px}
+  .p-title{font-family:var(--serif);font-weight:600;font-size:33px;color:var(--forest);line-height:1.08;margin-top:3px}
+  .p-sub{font-size:15px;color:var(--ink-soft);margin-top:3px}
+  .p-meta{display:flex;align-items:center;gap:10px;margin-top:11px;flex-wrap:wrap}
+  .phase-chip{
+    font-size:13px;font-weight:700;letter-spacing:.05em;color:#fff;background:var(--pc,var(--forest));
+    padding:6px 13px;border-radius:999px;white-space:nowrap;
+  }
+  .pbar-lbl{font-size:13.5px;color:var(--ink-soft)}
+
+  /* phase ladder — node-and-connector stepper (replaces a flat segment bar) */
+  .phase-ladder{display:flex;align-items:center;margin-top:12px;max-width:320px}
+  .phase-step{display:flex;align-items:center;flex:1}
+  .phase-step:first-child{flex:0 0 auto}
+  .phase-link{flex:1;height:2px;background:var(--line-strong);margin-right:-1px}
+  .phase-node{width:14px;height:14px;border-radius:50%;background:#fff;border:2.5px solid var(--line-strong);flex:none;position:relative;z-index:1}
+  .phase-step.is-done .phase-node{background:var(--gold);border-color:var(--gold)}
+  .phase-step.is-done .phase-link{background:var(--gold)}
+  .phase-step.is-current .phase-node{background:var(--pc,var(--forest));border-color:var(--pc,var(--forest));box-shadow:0 0 0 4px rgba(26,60,52,.16)}
+  .phase-step.is-current .phase-link{background:var(--gold)}
+  .phase-step.is-upcoming .phase-node{background:#fff;border-color:var(--line-strong)}
+
+  .p-actions{margin-top:15px}
+  .btn{
+    min-height:48px;border-radius:var(--radius);border:none;font-weight:700;font-size:15.5px;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;
+    transition:transform .12s,background .15s;position:relative;overflow:hidden;
+  }
+  .btn svg{width:17px;height:17px;flex:none}
+  .btn:active{transform:translateY(1px)}
+  .btn[disabled]{opacity:.65;cursor:wait}
+  .btn-ai{background:var(--terracotta-deep);color:#fff;width:100%}
+  .btn-ai:hover{background:#8f4a1f}
+  .btn.shimmer::after{
+    content:'';position:absolute;inset:0;
+    background:linear-gradient(105deg,transparent 25%,rgba(255,255,255,.4) 50%,transparent 75%);
+    animation:shim 1.1s linear infinite;
+  }
+  @keyframes shim{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+
+  .p-body{flex:1;overflow-y:auto;min-height:0;padding-bottom:16px}
+
+  /* AI summary card — a small "certificate" insert: gold top edge, sparkle badge */
+  .ai-card{margin:16px 22px 0;background:#fff;border:1px solid var(--line);border-top:3px solid var(--gold);border-radius:var(--radius-lg);padding:15px 17px;box-shadow:var(--shadow-card)}
+  .ai-card h3{font-size:15px;font-weight:700;color:var(--forest);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .ai-card h3 svg{width:17px;height:17px;color:var(--gold-deep);flex:none}
+  .ai-tag{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-soft);border:1px solid var(--line-strong);padding:3px 9px;border-radius:999px;font-weight:700}
+  .ai-month{font-size:13.5px;color:var(--ink-soft);margin-top:3px;font-style:italic}
+  .ai-card p{font-size:17px;line-height:1.6;color:var(--ink);margin-top:10px}
+  .ai-note{font-size:12.5px;color:var(--ink-soft);margin-top:11px;padding-top:9px;border-top:1px dashed var(--line)}
+  .typing::after{
+    content:'';display:inline-block;width:2px;height:1em;background:var(--terracotta);
+    margin-left:2px;vertical-align:-2px;animation:blink .75s steps(1) infinite;
+  }
+  @keyframes blink{50%{opacity:0}}
+
+  /* journal feed — ruled field-journal lines + a faint notebook margin rule */
+  .journal{
+    padding:6px 22px 12px 30px;position:relative;
+    background-image:
+      linear-gradient(90deg,transparent 0 21px,rgba(187,107,61,.16) 21px 22px,transparent 22px),
+      repeating-linear-gradient(0deg,transparent 0 32px,rgba(26,60,52,.065) 32px 33px);
+  }
+  .filterhint{
+    display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px;color:var(--ink-soft);
+    background:var(--cream-alt);border:1px dashed var(--line-strong);border-radius:10px;padding:9px 12px;margin-top:12px;
+  }
+  .filterhint button{min-height:44px;border:none;background:transparent;color:var(--forest);font-weight:700;font-size:14px;text-decoration:underline;padding:8px 6px}
+  .jdate{
+    font-family:var(--serif);font-weight:600;font-size:24px;color:var(--forest);
+    margin:19px 0 3px;padding-bottom:6px;border-bottom:1.5px solid rgba(181,148,69,.55);
+    display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;
+  }
+  .jdate .cnt{font-family:var(--sans);font-size:13.5px;font-weight:600;color:var(--ink-soft)}
+  .entry{
+    display:flex;gap:12px;padding:12px 0 14px;border-bottom:1px dashed var(--line);
+    animation:entryIn .3s ease-out backwards;animation-delay:min(calc(var(--i,0) * 16ms),190ms);
+  }
+  @keyframes entryIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+  .entry:last-child{border-bottom:none}
+  .e-ico{width:39px;height:39px;border-radius:10px;background:var(--pc,var(--forest));color:#fff;display:grid;place-items:center;flex:none;margin-top:2px}
+  .e-ico svg{width:19px;height:19px}
+  .entry.is-note .e-ico{background:#fff;color:var(--pc,var(--forest));border:1.5px dashed var(--pc,var(--forest))}
+  .e-main{flex:1;min-width:0}
+  .e-meta{display:flex;gap:9px;align-items:center;font-size:13.5px;color:var(--ink-soft);flex-wrap:wrap}
+  .e-time{font-variant-numeric:tabular-nums;font-weight:600}
+  .e-meta .pj{display:inline-flex;gap:5px;align-items:center;font-weight:700;color:var(--pc,var(--forest))}
+  .e-meta .pj i{width:9px;height:9px;border-radius:50%;background:var(--pc,var(--forest));flex:none}
+  .e-meta .ph{color:var(--ink-soft);border-left:1px solid var(--line-strong);padding-left:9px}
+  .e-title{font-size:17.5px;font-weight:600;color:var(--ink);line-height:1.4;margin-top:4px;overflow-wrap:anywhere}
+  .e-sub{font-size:14px;color:var(--ink-soft);margin-top:2px}
+  .thumbrow{display:flex;gap:10px;margin-top:9px;align-items:center;flex-wrap:wrap}
+  /* polaroid-tilt texture thumbs — small scrapbook flourish for the field-journal feel */
+  .thumb{
+    width:58px;height:58px;border-radius:3px;border:1px solid rgba(0,0,0,.1);flex:none;
+    box-shadow:0 0 0 4px #fff,0 3px 8px rgba(18,48,42,.18);
+  }
+  .thumb:nth-child(odd){transform:rotate(-2.2deg)}
+  .thumb:nth-child(even){transform:rotate(2deg)}
+  .thumb-more{
+    width:58px;height:58px;border-radius:3px;border:1.5px dashed var(--line-strong);display:grid;place-items:center;
+    font-size:14px;font-weight:700;color:var(--ink-soft);background:var(--cream-alt);flex:none;
+  }
+  .tagchip{font-size:12.5px;font-weight:700;background:var(--cream-alt);border:1px solid var(--line);color:var(--forest);padding:4px 10px;border-radius:999px}
+  /* photo CSS textures per canonical tag */
+  .tag-prin{background:radial-gradient(circle at 30% 35%,rgba(255,255,255,.16) 0 3px,transparent 4px),radial-gradient(circle at 70% 65%,rgba(0,0,0,.2) 0 3px,transparent 4px),linear-gradient(155deg,#9a917f,#7c7466)}
+  .tag-meta{background:radial-gradient(circle at 28% 30%,rgba(243,238,225,.5) 0 3px,transparent 4px),radial-gradient(circle at 68% 60%,rgba(18,48,42,.35) 0 4px,transparent 5px),linear-gradient(150deg,#6b8f57,#41633a)}
+  .tag-proodos{background:linear-gradient(0deg,#5d4326 0 42%,transparent 42%),radial-gradient(circle at 65% 30%,rgba(163,177,138,.6) 0 5px,transparent 6px),radial-gradient(circle at 30% 25%,rgba(163,177,138,.45) 0 4px,transparent 5px),linear-gradient(160deg,#87a06b,#5f7d4a)}
+  .tag-provlima{background:radial-gradient(circle at 55% 45%,#c9a94e 0 9px,rgba(201,169,78,.4) 10px 16px,transparent 17px),linear-gradient(150deg,#7d9161,#5a7245)}
+  .tag-ylika{background:radial-gradient(circle at 25% 30%,#d8d0bd 0 5px,transparent 6px),radial-gradient(circle at 60% 55%,#b8ac92 0 6px,transparent 7px),radial-gradient(circle at 80% 30%,#cfc6ae 0 5px,transparent 6px),radial-gradient(circle at 40% 78%,#a99d82 0 5px,transparent 6px),#c4b998}
+  .tag-aytopsia{background:repeating-linear-gradient(0deg,transparent 0 10px,rgba(26,60,52,.16) 10px 11px),linear-gradient(150deg,#f3eee1,#e4dcc6)}
+  .tag-sxedio{background:repeating-linear-gradient(0deg,transparent 0 9px,rgba(250,246,238,.3) 9px 10px),repeating-linear-gradient(90deg,transparent 0 9px,rgba(250,246,238,.3) 9px 10px),linear-gradient(150deg,#2c5850,#1a3c34)}
+  .n-del{
+    min-width:44px;min-height:44px;flex:none;border:none;background:transparent;color:#8b968c;
+    border-radius:8px;display:grid;place-items:center;transition:all .14s;align-self:flex-start;
+  }
+  .n-del:hover{color:var(--danger);background:#f5e6df}
+  .n-del svg{width:19px;height:19px}
+  .feed-empty{font-size:16px;color:var(--ink-soft);padding:22px 2px;font-style:italic}
+
+  /* quick-add footer — "add a line to today's log" */
+  .p-add{border-top:1px solid var(--line);background:var(--cream-alt);padding:13px 22px 17px;flex:none}
+  .qa-lbl{font-family:var(--serif);font-size:16.5px;font-weight:600;color:var(--forest);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .qa-lbl svg{width:16px;height:16px;color:var(--gold-deep)}
+  #qaText{
+    width:100%;min-height:48px;padding:11px 14px;border:1.5px solid var(--line-strong);border-radius:var(--radius);
+    background:#fff;font-size:16.5px;color:var(--ink);outline:none;transition:border-color .15s,box-shadow .15s;
+  }
+  #qaText::placeholder{color:#8b968c}
+  #qaText:focus{border-color:var(--forest);box-shadow:0 0 0 3px rgba(26,60,52,.14)}
+  .qa-row{display:flex;gap:9px;margin-top:9px;flex-wrap:wrap;align-items:flex-end}
+  .qa-fld{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--ink-soft);font-weight:700}
+  .qa-fld input,.qa-fld select{
+    min-height:46px;border:1.5px solid var(--line-strong);border-radius:var(--radius);padding:8px 10px;
+    font-size:15.5px;background:#fff;color:var(--ink);outline:none;
+  }
+  .qa-fld input:focus,.qa-fld select:focus{border-color:var(--forest);box-shadow:0 0 0 3px rgba(26,60,52,.14)}
+  .qa-btn{background:var(--forest);color:#fff;flex:1;min-width:170px}
+  .qa-btn:hover{background:var(--forest-deep)}
+
+  /* toast */
+  .toast{
+    position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(16px);z-index:300;
+    background:var(--forest-deep);color:#fff;font-weight:600;font-size:15px;padding:13px 20px;
+    border-radius:var(--radius);box-shadow:0 10px 30px rgba(18,48,42,.35);display:flex;align-items:center;gap:10px;
+    opacity:0;visibility:hidden;transition:opacity .2s,transform .2s,visibility .2s;max-width:min(92vw,560px);
+  }
+  .toast.show{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+  .toast svg{width:17px;height:17px;color:var(--sage-light);flex:none}
+
+  /* ============ RESPONSIVE ============ */
+  @media(max-width:999px){
+    .page{padding:18px 16px 60px}
+    #monthTitle{font-size:30px;min-width:0}
+    .cell{min-height:118px;padding:7px}
+    .evchip{font-size:17px;padding:4px 8px 4px 7px}
+  }
+  @media(max-width:799px){
+    .topbar{gap:12px;padding:10px 14px}
+    .topbar .demo-tag{display:none}
+    .cell{min-height:104px}
+    .viscount{flex-basis:100%;margin-left:0}
+    .control-deck{padding:14px 14px}
+  }
+  /* phone (~375px): dot-day grid; the drill-in panel (bottom drawer)
+     becomes the primary reading surface */
+  @media(max-width:559px){
+    .brand .nm{font-size:23px}
+    .brand .mark{width:38px;height:38px}
+    .topbar .feat{padding-left:12px}
+    .topbar .feat h1{font-size:20px}
+    .topbar .feat p{font-size:12.5px}
+    .page{padding:14px 10px 56px}
+    .control-deck{padding:12px 11px;border-radius:14px}
+    .monthbar{gap:8px}
+    #monthTitle{font-size:27px}
+    .mnav{width:46px;height:46px}
+    .today-btn{padding:8px 14px;font-size:14.5px}
+    .fchip{min-height:44px;padding:8px 13px;font-size:14.5px}
+    .filters{gap:9px}
+    .deck-row + .deck-row{margin-top:11px;padding-top:11px}
+    .calcard{padding:9px 6px 11px;border-radius:14px}
+    .dowrow{gap:3px;margin-bottom:5px;padding-bottom:5px}
+    .dowrow span{font-size:11px;padding:4px 0}
+    #grid{gap:4px}
+    .cell{min-height:58px;padding:5px 2px;border-radius:9px;gap:3px;align-items:center}
+    .dhead{justify-content:center}
+    .dnum{width:28px;height:28px;font-size:15px}
+    .tdy{display:none}
+    .evchips,.more{display:none}
+    .dots{display:flex;gap:3px;justify-content:center;flex-wrap:wrap;max-width:100%}
+    .dots i{width:9px;height:9px;border-radius:50%;background:var(--pc,var(--forest));border:1px solid rgba(0,0,0,.15)}
+    /* mobile day count badge: number + chevron hints "tap this day for the full list" */
+    .cbadge{
+      display:flex;align-items:center;gap:1px;position:absolute;top:3px;right:3px;
+      font-size:11px;font-weight:700;background:var(--cream-alt);border:1px solid var(--line-strong);
+      border-radius:999px;padding:1px 5px 1px 7px;color:var(--forest);
+      line-height:16px;font-variant-numeric:tabular-nums;
+    }
+    .cbadge svg{width:9px;height:9px;flex:none;opacity:.8}
+    .legend{font-size:13px;gap:10px}
+    .panel{
+      top:auto;left:0;right:0;bottom:0;width:100%;max-height:88dvh;height:auto;
+      border-radius:20px 20px 0 0;transform:translateY(105%);box-shadow:0 -18px 50px rgba(18,48,42,.3);
+    }
+    body.panel-open .panel{transform:none}
+    .p-inner{max-height:88dvh}
+    .p-head{padding:10px 16px 12px;border-radius:20px 20px 0 0}
+    .p-head::before{content:'';display:block;width:44px;height:4px;border-radius:2px;background:var(--line-strong);margin:0 auto 6px}
+    .p-kick{padding-top:6px}
+    .p-title{font-size:25px}
+    .ai-card{margin:12px 14px 0;padding:12px 13px}
+    .journal{padding:2px 14px 10px 22px}
+    .journal{background-image:linear-gradient(90deg,transparent 0 15px,rgba(187,107,61,.16) 15px 16px,transparent 16px),repeating-linear-gradient(0deg,transparent 0 32px,rgba(26,60,52,.065) 32px 33px)}
+    .jdate{font-size:21px}
+    .p-add{padding:10px 14px 14px}
+    .qa-btn{min-width:100%}
+    .toast{bottom:14px}
+  }
+  @media(max-width:379px){
+    .fchip{padding:8px 11px;font-size:14px;gap:6px}
+    .cell{min-height:54px}
+  }
+
+  /* prefers-reduced-motion: kill shimmer/typing-caret/drawer/stagger animation;
+     everything still works, just without motion (JS also skips the
+     typing theater and renders the AI summary instantly) */
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{
+      animation-duration:.01ms !important;animation-iteration-count:1 !important;
+      transition-duration:.01ms !important;scroll-behavior:auto !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ TOP BAR ============ -->
+<header class="topbar">
+  <div class="brand">
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>
+    </span>
+    <span class="nm">La<b>Flow</b></span>
+  </div>
+  <div class="feat">
+    <h1>Ημερολόγιο Έργων</h1>
+    <p>Όλα τα έργα σας, με μια ματιά.</p>
+  </div>
+  <span class="spacer"></span>
+  <span class="demo-tag">Demo · Προσομοίωση AI</span>
+</header>
+
+<div class="page">
+
+  <!-- unified control deck: month navigation + filters -->
+  <section class="control-deck">
+    <div class="deck-row monthbar">
+      <button class="mnav" id="prevBtn" type="button" aria-label="Προηγούμενος μήνας">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg>
+      </button>
+      <h2 id="monthTitle"></h2>
+      <button class="mnav" id="nextBtn" type="button" aria-label="Επόμενος μήνας">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+      </button>
+      <button class="today-btn" id="todayBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.6"/></svg>
+        Σήμερα
+      </button>
+      <span class="viscount" id="visCount" aria-live="polite"></span>
+    </div>
+
+    <div class="deck-row filters">
+      <div class="frow" id="projChips" role="group" aria-label="Φίλτρα έργων">
+        <span class="flabel">Έργα</span>
+      </div>
+      <div class="frow" id="typeChips" role="group" aria-label="Φίλτρα τύπου καταχώρισης">
+        <span class="flabel">Εμφάνιση</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- calendar -->
+  <div class="calcard">
+    <div class="emptybar" id="emptyBar" hidden>
+      <span>Κανένα γεγονός δεν ταιριάζει με τα φίλτρα σε αυτόν τον μήνα.</span>
+      <button type="button" id="clearFilters">Καθαρισμός φίλτρων</button>
+    </div>
+    <div class="dowrow" aria-hidden="true">
+      <span>Δευ</span><span>Τρί</span><span>Τετ</span><span>Πέμ</span><span>Παρ</span><span>Σάβ</span><span>Κυρ</span>
+    </div>
+    <div id="grid"></div>
+  </div>
+
+  <div class="legend" id="legend"><span>Υπόμνημα:</span></div>
+</div>
+
+<!-- ============ DRILL-IN PANEL ============ -->
+<div class="overlay" id="overlay"></div>
+<aside class="panel" id="panel" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Ημερολόγιο">
+  <div class="p-inner">
+    <header class="p-head" id="pHead"></header>
+    <div class="p-body" id="pBody">
+      <div id="aiOut"></div>
+      <div class="journal" id="pFeed"></div>
+    </div>
+    <form class="p-add" id="pAdd" autocomplete="off" novalidate></form>
+  </div>
+</aside>
+
+<div class="toast" id="toast" role="status">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+/* ============================================================
+   LF-02 Ημερολόγιο Έργων — functional MVP (offline, no deps)
+   REDESIGN pass: all data/state/interaction logic below is kept
+   byte-for-byte identical to the original build (same seeded
+   events, same filters/notes/AI-summary logic) — only the HTML
+   templates that produce visual markup were adjusted for the new
+   "field journal" design (ledger-row event chips via CSS only,
+   a node/connector phase ladder, mobile tap-hint chevron, and a
+   per-item stagger reveal via an --i custom property).
+   Two intentional micro-copy/UX fixes carried over from the
+   shipped demo's non-blocking polish backlog (POLISH.md P2):
+   1) AI phrasing "Σε παρακολούθηση: N προθεσμίες." (colon added)
+   2) novalidate on the quick-add form so the app's own Greek
+      out-of-range toast wins over the browser's native bubble.
+   ============================================================ */
+
+/* ---------------- Helpers ---------------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad2 = n => String(n).padStart(2,'0');
+const ymd = d => d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate());
+const parseYmd = s => { const p = s.split('-').map(Number); return new Date(p[0], p[1]-1, p[2]); };
+const daysIn = (y,m) => new Date(y, m+1, 0).getDate();
+const sameYM = (iso,y,m) => { const p = iso.split('-').map(Number); return p[0]===y && p[1]===m+1; };
+const plur = (n,s,p) => n + ' ' + (n===1 ? s : p);
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const fmtEUR = n => n.toLocaleString('el-GR') + ' €';
+const REDUCED = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const MONTHS_NOM = ['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
+const MONTHS_ACC = ['Ιανουάριο','Φεβρουάριο','Μάρτιο','Απρίλιο','Μάιο','Ιούνιο','Ιούλιο','Αύγουστο','Σεπτέμβριο','Οκτώβριο','Νοέμβριο','Δεκέμβριο'];
+const MONTHS_GEN = ['Ιανουαρίου','Φεβρουαρίου','Μαρτίου','Απριλίου','Μαΐου','Ιουνίου','Ιουλίου','Αυγούστου','Σεπτεμβρίου','Οκτωβρίου','Νοεμβρίου','Δεκεμβρίου'];
+const DAYS_FULL = ['Κυριακή','Δευτέρα','Τρίτη','Τετάρτη','Πέμπτη','Παρασκευή','Σάββατο']; /* JS getDay() order */
+const PHASES = ['Μελέτη','Προσφορά','Έγκριση','Κατασκευή','Παράδοση','Συντήρηση'];
+
+/* ---------------- Icons (inline SVG) ---------------- */
+const SW = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+const ICO = {
+  task: '<svg ' + SW + ' aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.4 2.4 4.6-5.4"/></svg>',
+  photo: '<svg ' + SW + ' aria-hidden="true"><path d="M4 8h3.2L9 5.4h6L16.8 8H20v11H4Z"/><circle cx="12" cy="13" r="3.3"/></svg>',
+  phase: '<svg ' + SW + ' aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.2 12h6.6M12 8.6l3.4 3.4-3.4 3.4"/></svg>',
+  payment: '<svg ' + SW + ' aria-hidden="true"><rect x="3" y="7" width="18" height="11" rx="2"/><circle cx="12" cy="12.5" r="2.6"/></svg>',
+  deadline: '<svg ' + SW + ' aria-hidden="true"><path d="M6 21V4"/><path d="M6 5h11l-2.2 3.5L17 12H6"/></svg>',
+  note: '<svg ' + SW + ' aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  close: '<svg ' + SW.replace('stroke-width="2"','stroke-width="2.2"') + ' aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  trash: '<svg ' + SW + ' aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+  sparkle: '<svg ' + SW + ' aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/><path d="M19 15l.9 2.4 2.4.6-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.6Z"/></svg>',
+  chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>'
+};
+const TYPES = {
+  task:     { label:'Εργασίες' },
+  photo:    { label:'Φωτογραφίες' },
+  phase:    { label:'Φάσεις' },
+  payment:  { label:'Πληρωμές' },
+  deadline: { label:'Προθεσμίες' },
+  note:     { label:'Σημειώσεις' }
+};
+const TAG_KEYS = { 'Πριν':'prin', 'Μετά':'meta', 'Πρόοδος':'proodos', 'Πρόβλημα':'provlima', 'Υλικά':'ylika', 'Αυτοψία':'aytopsia', 'Σχέδιο':'sxedio' };
+
+/* ---------------- Time window (relative to the REAL today) ---------------- */
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+const TODAY_ISO = ymd(TODAY);
+/* three months: previous / current / next */
+const WINDOW = [0,1,2].map(i => {
+  const d = new Date(TODAY.getFullYear(), TODAY.getMonth()-1+i, 1);
+  return { y: d.getFullYear(), m: d.getMonth() };
+});
+const windowStart = new Date(WINDOW[0].y, WINDOW[0].m, 1);
+const windowEnd   = new Date(WINDOW[2].y, WINDOW[2].m, daysIn(WINDOW[2].y, WINDOW[2].m));
+/* date helper inside the window: monthIdx 0..2 + clamped day */
+const wd = (mi, day) => {
+  const w = WINDOW[mi];
+  return new Date(w.y, w.m, Math.min(day, daysIn(w.y, w.m)));
+};
+const wsMinus = days => new Date(WINDOW[0].y, WINDOW[0].m, 1 - days);
+
+/* Marousi phase-transition day: a few days before today, inside the
+   current month (the pinned mid-window «Φάση: Έγκριση → Κατασκευή») */
+const dimCur = daysIn(WINDOW[1].y, WINDOW[1].m);
+const MT = Math.min(dimCur - 4, Math.max(2, TODAY.getDate() - 3));
+
+/* ---------------- Projects (shared LaFlow universe, continuity with LF-01) ---------------- */
+const PROJECTS = [
+  { id:'ekali', name:'Βίλα Εκάλη', short:'Βίλα Εκάλη', client:'κα Ελένη Δημητρίου', area:'Εκάλη, Αττική',
+    loc:'στη Βίλα Εκάλη', css:'var(--p-ekali)',
+    phases:[
+      { phase:'Μελέτη',    start:wsMinus(190) },
+      { phase:'Προσφορά',  start:wsMinus(120) },
+      { phase:'Έγκριση',   start:wsMinus(55)  },
+      { phase:'Κατασκευή', start:wsMinus(10)  }
+    ]},
+  { id:'marousi', name:'Εταιρικό campus Μαρούσι', short:'Campus Μαρούσι', client:'Alpha Real Estate Α.Ε.', area:'Μαρούσι, Αττική',
+    loc:'στο εταιρικό campus στο Μαρούσι', css:'var(--p-marousi)',
+    phases:[
+      { phase:'Μελέτη',    start:wsMinus(130) },
+      { phase:'Προσφορά',  start:wsMinus(80)  },
+      { phase:'Έγκριση',   start:wsMinus(35)  },
+      { phase:'Κατασκευή', start:wd(1, MT)    }   /* mid-window transition */
+    ]},
+  { id:'kolonaki', name:'Roof garden Κολωνάκι', short:'Roof Κολωνάκι', client:'κ. Νίκος Βασιλείου', area:'Κολωνάκι, Αθήνα',
+    loc:'στο roof garden στο Κολωνάκι', css:'var(--p-kolonaki)',
+    phases:[
+      { phase:'Μελέτη',   start:wsMinus(25) },
+      { phase:'Προσφορά', start:wd(0, 18)   }    /* transition in previous month */
+    ]},
+  { id:'kifisia', name:'Κήπος Κηφισιά — συντήρηση', short:'Κήπος Κηφισιά', client:'οικογένεια Αλεξίου', area:'Κηφισιά, Αττική',
+    loc:'στον κήπο της Κηφισιάς', css:'var(--p-kifisia)',
+    phases:[
+      { phase:'Μελέτη',    start:wsMinus(620) },
+      { phase:'Προσφορά',  start:wsMinus(580) },
+      { phase:'Έγκριση',   start:wsMinus(540) },
+      { phase:'Κατασκευή', start:wsMinus(500) },
+      { phase:'Παράδοση',  start:wsMinus(360) },
+      { phase:'Συντήρηση', start:wsMinus(330) }
+    ]}
+];
+const projById = id => PROJECTS.find(p => p.id === id);
+
+function phaseAt(p, date){
+  let ph = p.phases[0].phase;
+  for (const x of p.phases){ if (x.start <= date) ph = x.phase; }
+  return ph;
+}
+
+/* ---------------- Seeded events (~60 over the 3-month window) ----------------
+   m: 0=prev, 1=current, 2=next · d: day of month ('T' = the real today) */
+function seedEvents(){
+  const S = [];
+  const push = (pid, mi, d, time, type, o) => {
+    const date = (d === 'T') ? new Date(TODAY) : wd(mi, d);
+    S.push(Object.assign({ id:'s' + (S.length+1), pid, date:ymd(date), time, type }, o));
+  };
+  const preMT = Math.max(1, MT - 1);
+
+  /* — Βίλα Εκάλη (Κατασκευή) — */
+  push('ekali',0, 2,'08:30','task',    { title:'Εκσκαφή και χωματουργικά', short:'Εκσκαφή' });
+  push('ekali',0, 5,'13:10','photo',   { tag:'Πριν', count:4, desc:'Αποτύπωση πριν την επέμβαση', short:'4 φωτ.' });
+  push('ekali',0, 9,'09:00','task',    { title:'Διάστρωση υπόβασης διαδρόμων', short:'Υπόβαση' });
+  push('ekali',0,12,'12:00','payment', { title:'Προκαταβολή 40%', status:'paid', amount:6400, short:'Πληρωμή' });
+  push('ekali',0,20,'10:30','task',    { title:'Ξυλότυποι τοιχίων παρτεριών', short:'Ξυλότυποι' });
+  push('ekali',0,27,'14:20','photo',   { tag:'Υλικά', count:2, desc:'Παραλαβή πλακών Καρύστου', short:'2 φωτ.' });
+  push('ekali',1, 1,'08:15','task',    { title:'Τοποθέτηση άρδευσης — ζώνη Α', short:'Άρδευση Α' });
+  push('ekali',1, 3,'12:40','photo',   { tag:'Πρόοδος', count:4, desc:'Δίκτυο άρδευσης πριν την επίχωση', short:'4 φωτ.' });
+  push('ekali',1, 6,'09:30','task',    { title:'Διάστρωση πλακών Καρύστου — αυλή', short:'Πλακόστρωση' });
+  push('ekali',1, 9,'09:00','deadline',{ title:'Επιμέτρηση για Β΄ δόση', short:'Επιμέτρηση' });
+  push('ekali',1,'T','08:45','task',   { title:'Τοποθέτηση άρδευσης — ζώνη Β', short:'Άρδευση Β' });
+  push('ekali',1,13,'18:05','photo',   { tag:'Πρόοδος', count:5, desc:'Πλακόστρωση αυλής σε εξέλιξη', short:'5 φωτ.' });
+  push('ekali',1,17,'12:00','payment', { title:'Β΄ δόση (40%)', status:'pending', amount:6400, short:'Β΄ δόση' });
+  push('ekali',1,21,'10:00','task',    { title:'Φύτευση παρτεριών — αρωματικά', short:'Φύτευση' });
+  push('ekali',1,25,'09:00','deadline',{ title:'Έλεγχος δικτύου άρδευσης', short:'Έλεγχος' });
+  push('ekali',2, 2,'09:00','task',    { title:'Φύτευση δέντρων — αιωνόβιες ελιές', short:'Ελιές' });
+  push('ekali',2, 6,'13:30','photo',   { tag:'Πρόοδος', count:6, desc:'Φυτεύσεις σε εξέλιξη', short:'6 φωτ.' });
+  push('ekali',2,11,'10:15','task',    { title:'Εγκατάσταση έτοιμου χλοοτάπητα', short:'Χλοοτάπητας' });
+  push('ekali',2,15,'09:00','deadline',{ title:'Ολοκλήρωση φυτεύσεων', short:'Φυτεύσεις' });
+
+  /* — Εταιρικό campus Μαρούσι (Έγκριση → Κατασκευή, mid-window) — */
+  push('marousi',0, 4,'11:00','task',    { title:'Υποβολή φακέλου έγκρισης στη διοίκηση', short:'Φάκελος' });
+  push('marousi',0, 8,'09:00','deadline',{ title:'Απάντηση τεχνικής υπηρεσίας', short:'Τεχν. υπηρεσία' });
+  push('marousi',0,15,'10:30','photo',   { tag:'Αυτοψία', count:3, desc:'Αυτοψία — υφιστάμενο πράσινο', short:'3 φωτ.' });
+  push('marousi',0,26,'16:00','photo',   { tag:'Σχέδιο', count:2, desc:'Τελικά σχέδια για έγκριση', short:'2 φωτ.' });
+  push('marousi',1, preMT,'09:30','deadline',{ title:'Υπογραφή σύμβασης κατασκευής', short:'Σύμβαση' });
+  push('marousi',1, preMT,'12:00','payment', { title:'Προκαταβολή έργου 30%', status:'paid', amount:18500, short:'Προκαταβολή' });
+  push('marousi',1, MT+3,'08:30','task',     { title:'Εκσκαφές κεντρικής πλατείας campus', short:'Εκσκαφές' });
+  push('marousi',1, MT+6,'13:15','photo',    { tag:'Πρόοδος', count:4, desc:'Χωματουργικά σε εξέλιξη', short:'4 φωτ.' });
+  push('marousi',1, Math.min(dimCur, MT+11),'09:45','task',    { title:'Υποδομή άρδευσης — κεντρικές γραμμές', short:'Άρδευση' });
+  push('marousi',1, Math.min(dimCur, MT+15),'09:00','deadline',{ title:'Παραγγελία δέντρων μεγάλου μεγέθους', short:'Παραγγελία' });
+  push('marousi',2, 3,'08:30','task',    { title:'Διάστρωση διαδρόμων — ζώνη εισόδου', short:'Διάδρομοι' });
+  push('marousi',2, 8,'12:20','photo',   { tag:'Πρόοδος', count:5, desc:'Διαμόρφωση ζώνης εισόδου', short:'5 φωτ.' });
+  push('marousi',2,14,'12:00','payment', { title:'Α΄ πιστοποίηση εργασιών', status:'pending', amount:24000, short:'Πιστοποίηση' });
+  push('marousi',2,20,'09:00','deadline',{ title:'Ενδιάμεση επιθεώρηση επιβλέποντα', short:'Επιθεώρηση' });
+
+  /* — Roof garden Κολωνάκι (Μελέτη → Προσφορά) — */
+  push('kolonaki',0, 2,'10:00','task',    { title:'Αποτύπωση ταράτσας — μετρήσεις φορτίων', short:'Αποτύπωση' });
+  push('kolonaki',0, 6,'12:30','photo',   { tag:'Αυτοψία', count:5, desc:'Υφιστάμενη κατάσταση ταράτσας', short:'5 φωτ.' });
+  push('kolonaki',0,10,'15:00','task',    { title:'Σκίτσα concept φύτευσης', short:'Concept' });
+  push('kolonaki',0,14,'17:20','photo',   { tag:'Σχέδιο', count:3, desc:'Σχέδια γενικής διάταξης', short:'3 φωτ.' });
+  push('kolonaki',0,22,'11:30','task',    { title:'Ζήτηση τιμών από προμηθευτές', short:'Τιμές' });
+  push('kolonaki',1, 4,'10:30','task',    { title:'Σύνταξη αναλυτικής προσφοράς', short:'Προσφορά' });
+  push('kolonaki',1, 8,'09:00','deadline',{ title:'Αποστολή προσφοράς στον πελάτη', short:'Αποστολή' });
+  push('kolonaki',1,'T','17:00','task',   { title:'Ενημέρωση πελάτη — τηλεφωνική επικοινωνία', short:'Επικοινωνία' });
+  push('kolonaki',1,14,'16:45','photo',   { tag:'Σχέδιο', count:2, desc:'Φωτορεαλιστικά για την παρουσίαση', short:'2 φωτ.' });
+  push('kolonaki',1,19,'12:00','task',    { title:'Παρουσίαση προσφοράς στον πελάτη', short:'Παρουσίαση' });
+  push('kolonaki',1,24,'09:00','deadline',{ title:'Απάντηση πελάτη στην προσφορά', short:'Απάντηση' });
+  push('kolonaki',2, 5,'09:00','deadline',{ title:'Λήξη ισχύος προσφοράς', short:'Λήξη ισχύος' });
+  push('kolonaki',2,10,'11:00','task',    { title:'Αναθεώρηση προσφοράς — Β΄ εκδοχή', short:'Αναθεώρηση' });
+
+  /* — Κήπος Κηφισιά (Συντήρηση) — */
+  push('kifisia',0, 3,'08:00','task',    { title:'Μηνιαία συντήρηση — κλάδεμα θάμνων', short:'Κλάδεμα' });
+  push('kifisia',0,10,'09:40','photo',   { tag:'Πρόβλημα', count:2, desc:'Κιτρίνισμα χλοοτάπητα σε σκιερά σημεία', short:'2 φωτ.' });
+  push('kifisia',0,17,'07:30','task',    { title:'Προληπτικός ψεκασμός φυτοπροστασίας', short:'Ψεκασμός' });
+  push('kifisia',0,25,'12:00','payment', { title:'Μηνιαίο συμβόλαιο συντήρησης', status:'paid', amount:380, short:'Συμβόλαιο' });
+  push('kifisia',1, 5,'08:00','task',    { title:'Μηνιαία συντήρηση — κούρεμα χλοοτάπητα', short:'Κούρεμα' });
+  push('kifisia',1,'T','08:00','task',   { title:'Αυτοψία συντήρησης — έλεγχος άρδευσης', short:'Αυτοψία' });
+  push('kifisia',1,11,'10:20','photo',   { tag:'Μετά', count:3, desc:'Παρτέρια εισόδου μετά το κλάδεμα', short:'3 φωτ.' });
+  push('kifisia',1,16,'08:30','task',    { title:'Λίπανση παρτεριών και τριανταφυλλιών', short:'Λίπανση' });
+  push('kifisia',1,22,'09:00','deadline',{ title:'Ανανέωση ετήσιου συμβολαίου', short:'Συμβόλαιο' });
+  push('kifisia',1,26,'12:00','payment', { title:'Μηνιαίο συμβόλαιο συντήρησης', status:'pending', amount:380, short:'Συμβόλαιο' });
+  push('kifisia',2, 4,'08:00','task',    { title:'Μηνιαία συντήρηση — κλάδεμα και καθαρισμοί', short:'Συντήρηση' });
+  push('kifisia',2, 9,'09:30','photo',   { tag:'Μετά', count:2, desc:'Ο κήπος μετά τη μηνιαία επίσκεψη', short:'2 φωτ.' });
+  push('kifisia',2,18,'07:30','task',    { title:'Θερινό πρόγραμμα φυτοπροστασίας', short:'Φυτοπροστασία' });
+  push('kifisia',2,24,'12:00','payment', { title:'Μηνιαίο συμβόλαιο συντήρησης', status:'pending', amount:380, short:'Συμβόλαιο' });
+
+  /* — phase-transition events derived from the SAME phase history (single source) — */
+  PROJECTS.forEach(p => {
+    p.phases.forEach((x,i) => {
+      if (i === 0) return;
+      if (x.start >= windowStart && x.start <= windowEnd){
+        S.push({ id:'ph-' + p.id + '-' + i, pid:p.id, date:ymd(x.start), time:'09:00', type:'phase',
+                 from:p.phases[i-1].phase, to:x.phase, short:'Αλλαγή φάσης' });
+      }
+    });
+  });
+  return S;
+}
+const EVENTS = seedEvents();
+
+/* ---------------- Notes (localStorage) ----------------
+   Storage key deliberately bumped vs the shipped original
+   (…-v1 → …-redesign-v1) so this visual-redesign copy never
+   cross-reads/writes the original demo's saved notes on file://
+   origins that some browsers share across local files. */
+const STORAGE_KEY = 'laflow-lf02-project-diary-redesign-v1';
+let NOTES = [];
+function loadNotes(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (!data || data.v !== 1 || !Array.isArray(data.notes)) return;
+    NOTES = data.notes.filter(n => n && n.id && n.pid && projById(n.pid) &&
+      /^\d{4}-\d{2}-\d{2}$/.test(n.date || '') && typeof n.text === 'string' && n.text.trim());
+  }catch(e){ /* corrupted storage → start empty */ }
+}
+function saveNotes(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({ v:1, notes:NOTES })); }
+  catch(e){ /* storage unavailable → in-memory only */ }
+}
+
+/* one merged list: seeded events + user notes (as type «σημείωση») */
+function allEntries(){
+  return EVENTS.concat(NOTES.map(n => ({
+    id:n.id, pid:n.pid, date:n.date, time:n.time || '12:00', type:'note', text:n.text, short:'Σημείωση'
+  })));
+}
+
+/* ---------------- State ---------------- */
+const state = {
+  curIdx: 1,                                 /* WINDOW index of the visible month */
+  projFilter: 'all',                         /* 'all' | project id */
+  typeFilter: new Set(Object.keys(TYPES)),   /* active event types */
+  panel: null,                               /* null | {mode:'day',date} | {mode:'project',pid} */
+  expanded: new Set()                        /* day ISO dates with the full list open */
+};
+const curYM = () => WINDOW[state.curIdx];
+
+function passesFilters(e){
+  if (state.projFilter !== 'all' && e.pid !== state.projFilter) return false;
+  if (!state.typeFilter.has(e.type)) return false;
+  return true;
+}
+function monthEntries(y, m, filtered){
+  return allEntries().filter(e => sameYM(e.date, y, m) && (!filtered || passesFilters(e)));
+}
+function entriesOn(iso, filtered){
+  return allEntries()
+    .filter(e => e.date === iso && (!filtered || passesFilters(e)))
+    .sort((a,b) => a.time < b.time ? -1 : a.time > b.time ? 1 : 0);
+}
+
+/* ---------------- Entry text ---------------- */
+function taskPrefix(e){
+  if (e.date === TODAY_ISO) return 'Σήμερα: ';
+  return parseYmd(e.date) < TODAY ? 'Ολοκληρώθηκε: ' : 'Έχει προγραμματιστεί: ';
+}
+function entryTitle(e){
+  switch(e.type){
+    case 'task':     return taskPrefix(e) + e.title;
+    case 'photo':    return (e.count === 1 ? '1 νέα φωτογραφία' : e.count + ' νέες φωτογραφίες') + ' (' + e.tag + ')';
+    case 'phase':    return 'Φάση: ' + e.from + ' → ' + e.to;
+    case 'payment':  return e.status === 'paid'
+        ? 'Πληρωμή: ' + e.title + ' — εξοφλήθηκε (' + fmtEUR(e.amount) + ')'
+        : 'Σε εκκρεμότητα: ' + e.title + ' (' + fmtEUR(e.amount) + ')';
+    case 'deadline': return 'Προθεσμία: ' + e.title;
+    case 'note':     return e.text;
+  }
+  return '';
+}
+
+/* ---------------- Render: filters + legend (built once) ---------------- */
+function buildFilters(){
+  const pc = $('#projChips');
+  let html = '<button type="button" class="fchip allchip" data-pid="all" aria-pressed="true">Όλα τα έργα</button>';
+  PROJECTS.forEach(p => {
+    html += '<button type="button" class="fchip pchip" data-pid="' + p.id + '" style="--pc:' + p.css + '" aria-pressed="false">' +
+            '<span class="dot" aria-hidden="true"></span>' + esc(p.short) + '</button>';
+  });
+  pc.insertAdjacentHTML('beforeend', html);
+
+  const tc = $('#typeChips');
+  let th = '';
+  Object.keys(TYPES).forEach(t => {
+    th += '<button type="button" class="fchip tchip" data-type="' + t + '" aria-pressed="true">' + ICO[t] + TYPES[t].label + '</button>';
+  });
+  tc.insertAdjacentHTML('beforeend', th);
+
+  let lg = '';
+  PROJECTS.forEach(p => {
+    lg += '<span class="li" style="--pc:' + p.css + '"><span class="dot" aria-hidden="true"></span>' + esc(p.short) + '</span>';
+  });
+  $('#legend').insertAdjacentHTML('beforeend', lg);
+}
+function syncFilterUI(){
+  document.querySelectorAll('#projChips .fchip').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.pid === state.projFilter)));
+  document.querySelectorAll('#typeChips .fchip').forEach(b =>
+    b.setAttribute('aria-pressed', String(state.typeFilter.has(b.dataset.type))));
+}
+
+/* ---------------- Render: calendar ---------------- */
+function renderCalendar(){
+  const { y, m } = curYM();
+  $('#monthTitle').textContent = MONTHS_NOM[m] + ' ' + y;
+  $('#prevBtn').disabled = state.curIdx === 0;
+  $('#nextBtn').disabled = state.curIdx === 2;
+
+  const dim = daysIn(y, m);
+  const lead = (new Date(y, m, 1).getDay() + 6) % 7;   /* Monday-first offset */
+  const dimPrev = daysIn(y, m - 1);
+  let html = '';
+
+  for (let i = 0; i < lead; i++){
+    html += '<div class="cell out" aria-hidden="true"><span class="dhead"><span class="dnum">' + (dimPrev - lead + 1 + i) + '</span></span></div>';
+  }
+  for (let d = 1; d <= dim; d++){
+    const iso = y + '-' + pad2(m+1) + '-' + pad2(d);
+    const evs = entriesOn(iso, true);
+    const dow = (lead + d - 1) % 7;
+    const isToday = iso === TODAY_ISO;
+    const expanded = state.expanded.has(iso);
+    const shown = expanded ? evs : evs.slice(0, 3);
+    const hidden = evs.length - shown.length;
+
+    let chips = '';
+    shown.forEach(e => {
+      const p = projById(e.pid);
+      chips += '<span class="evchip' + (e.type === 'note' ? ' note' : '') + '" style="--pc:' + p.css + '">' +
+               ICO[e.type] + '<span class="t">' + esc(e.short) + '</span></span>';
+    });
+    if (hidden > 0) chips += '<button type="button" class="more" data-iso="' + iso + '">+' + hidden + ' ακόμη</button>';
+    else if (expanded && evs.length > 3) chips += '<button type="button" class="more" data-iso="' + iso + '">Λιγότερα</button>';
+
+    const pidsHere = PROJECTS.filter(p => evs.some(e => e.pid === p.id));
+    let dots = '';
+    pidsHere.forEach(p => { dots += '<i style="--pc:' + p.css + '"></i>'; });
+
+    const label = d + ' ' + MONTHS_GEN[m] + ' ' + y + ', ' + DAYS_FULL[new Date(y, m, d).getDay()] +
+      (isToday ? ' — σήμερα' : '') + ' — ' + plur(evs.length, 'καταχώριση', 'καταχωρίσεις');
+
+    /* mobile-only count badge gets a tiny chevron so it reads as "tap for
+       the full list", not just a static number (POLISH.md P2 item 3) */
+    html += '<div class="cell' + (dow >= 5 ? ' we' : '') + (isToday ? ' today' : '') + '" role="button" tabindex="0"' +
+            ' data-iso="' + iso + '" aria-label="' + esc(label) + '" style="--i:' + d + '">' +
+            '<span class="dhead"><span class="dnum">' + d + '</span>' + (isToday ? '<span class="tdy">Σήμερα</span>' : '') + '</span>' +
+            (evs.length ? '<span class="cbadge" aria-hidden="true">' + evs.length + ICO.chevron + '</span>' : '') +
+            '<span class="evchips">' + chips + '</span>' +
+            '<span class="dots" aria-hidden="true">' + dots + '</span>' +
+            '</div>';
+  }
+  const total = lead + dim;
+  const trail = (7 - (total % 7)) % 7;
+  for (let i = 1; i <= trail; i++){
+    html += '<div class="cell out" aria-hidden="true"><span class="dhead"><span class="dnum">' + i + '</span></span></div>';
+  }
+  $('#grid').innerHTML = html;
+
+  const visible = monthEntries(y, m, true).length;
+  $('#visCount').textContent = plur(visible, 'καταχώριση', 'καταχωρίσεις') + ' με τα τρέχοντα φίλτρα';
+  $('#emptyBar').hidden = visible !== 0;
+}
+
+/* ---------------- Drill-in panel ---------------- */
+let lastFocus = null;
+let aiToken = 0;
+let aiBusy = false;
+
+function openPanel(p){
+  state.panel = p;
+  lastFocus = document.activeElement;
+  buildPanel();
+  document.body.classList.add('panel-open');
+  $('#panel').setAttribute('aria-hidden', 'false');
+  $('#pBody').scrollTop = 0;
+  const c = $('#pClose'); if (c) c.focus();
+}
+function closePanel(){
+  if (!state.panel) return;
+  state.panel = null;
+  aiToken++; aiBusy = false;
+  document.body.classList.remove('panel-open');
+  $('#panel').setAttribute('aria-hidden', 'true');
+  if (lastFocus && document.contains(lastFocus)) lastFocus.focus();
+}
+
+function panelColor(){
+  if (state.panel && state.panel.mode === 'project') return projById(state.panel.pid).css;
+  return 'var(--forest)';
+}
+
+/* node-and-connector phase ladder (replaces a flat 6-segment bar):
+   past phases = gold node + gold connector in, current = brand-color
+   node with a soft ring, upcoming = outline-only node */
+function phaseLadderHTML(idx){
+  let out = '';
+  for (let i = 0; i < 6; i++){
+    const cls = i < idx ? 'is-done' : i === idx ? 'is-current' : 'is-upcoming';
+    out += '<span class="phase-step ' + cls + '">' +
+           (i > 0 ? '<span class="phase-link" aria-hidden="true"></span>' : '') +
+           '<span class="phase-node" aria-hidden="true"></span>' +
+           '</span>';
+  }
+  return out;
+}
+
+function buildPanel(){
+  const pn = state.panel;
+  if (!pn) return;
+  const { y, m } = curYM();
+  const head = $('#pHead');
+  const css = panelColor();
+  $('#panel').style.setProperty('--pc', css);
+  $('#aiOut').innerHTML = '';
+  aiToken++; aiBusy = false;
+
+  if (pn.mode === 'project'){
+    const p = projById(pn.pid);
+    const cur = phaseAt(p, TODAY);
+    const idx = PHASES.indexOf(cur);
+    $('#panel').setAttribute('aria-label', 'Ημερολόγιο έργου: ' + p.name);
+    head.innerHTML =
+      '<div class="p-top"><span class="p-kick">Ημερολόγιο έργου · ' + MONTHS_NOM[m] + ' ' + y + '</span>' +
+      '<button type="button" class="p-close" id="pClose" aria-label="Κλείσιμο">' + ICO.close + '</button></div>' +
+      '<h2 class="p-title">' + esc(p.name) + '</h2>' +
+      '<p class="p-sub">' + esc(p.client) + ' · ' + esc(p.area) + '</p>' +
+      '<div class="p-meta"><span class="phase-chip">' + cur + '</span><span class="pbar-lbl">Φάση ' + (idx+1) + ' από 6</span></div>' +
+      '<div class="phase-ladder" role="img" aria-label="Πρόοδος φάσεων: ' + (idx+1) + ' από 6 (' + cur + ')">' + phaseLadderHTML(idx) + '</div>' +
+      '<div class="p-actions"><button type="button" class="btn btn-ai" id="aiBtn">' + ICO.sparkle +
+      '<span id="aiBtnLabel">Σύνοψη μήνα με AI</span></button></div>';
+  } else {
+    const d = parseYmd(pn.date);
+    const evs = entriesOn(pn.date, true);
+    const nproj = new Set(evs.map(e => e.pid)).size;
+    const dLabel = DAYS_FULL[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS_GEN[d.getMonth()] + ' ' + d.getFullYear();
+    $('#panel').setAttribute('aria-label', 'Ημερήσιο ημερολόγιο: ' + dLabel);
+    head.innerHTML =
+      '<div class="p-top"><span class="p-kick">Ημερήσιο ημερολόγιο</span>' +
+      '<button type="button" class="p-close" id="pClose" aria-label="Κλείσιμο">' + ICO.close + '</button></div>' +
+      '<h2 class="p-title">' + dLabel + '</h2>' +
+      '<p class="p-sub">' + plur(evs.length, 'καταχώριση', 'καταχωρίσεις') + ' · ' + plur(nproj, 'έργο', 'έργα') + '</p>' +
+      '<div class="p-actions"><button type="button" class="btn btn-ai" id="aiBtn">' + ICO.sparkle +
+      '<span id="aiBtnLabel">Σύνοψη μήνα με AI</span></button></div>';
+  }
+  buildFeed();
+  buildAddForm();
+}
+
+function entryHTML(e, i){
+  const p = projById(e.pid);
+  const isNote = e.type === 'note';
+  let inner =
+    '<div class="e-meta"><span class="e-time">' + e.time + '</span>' +
+    '<span class="pj"><i aria-hidden="true"></i>' + esc(p.short) + '</span>' +
+    '<span class="ph">Φάση: ' + phaseAt(p, parseYmd(e.date)) + '</span></div>' +
+    '<p class="e-title">' + esc(entryTitle(e)) + '</p>';
+  if (e.desc) inner += '<p class="e-sub">' + esc(e.desc) + '</p>';
+  if (isNote) inner += '<p class="e-sub">Δική σας σημείωση</p>';
+  if (e.type === 'photo'){
+    const k = TAG_KEYS[e.tag] || 'proodos';
+    let th = '';
+    for (let i = 0; i < Math.min(e.count, 3); i++) th += '<span class="thumb tag-' + k + '" aria-hidden="true"></span>';
+    if (e.count > 3) th += '<span class="thumb-more" aria-hidden="true">+' + (e.count - 3) + '</span>';
+    th += '<span class="tagchip">' + e.tag + '</span>';
+    inner += '<div class="thumbrow">' + th + '</div>';
+  }
+  return '<article class="entry' + (isNote ? ' is-note' : '') + '" style="--pc:' + p.css + ';--i:' + (i || 0) + '">' +
+    '<span class="e-ico" aria-hidden="true">' + ICO[e.type] + '</span>' +
+    '<div class="e-main">' + inner + '</div>' +
+    (isNote ? '<button type="button" class="n-del" data-id="' + e.id + '" aria-label="Διαγραφή σημείωσης">' + ICO.trash + '</button>' : '') +
+    '</article>';
+}
+
+function buildFeed(){
+  const pn = state.panel;
+  if (!pn) return;
+  const { y, m } = curYM();
+  let html = '';
+  let hiddenByFilters = 0;
+  let ei = 0;   /* running index across the whole feed → stagger delay */
+
+  if (pn.mode === 'project'){
+    const all = monthEntries(y, m, false).filter(e => e.pid === pn.pid);
+    const vis = all.filter(e => state.typeFilter.has(e.type));
+    hiddenByFilters = all.length - vis.length;
+    if (!vis.length){
+      html = '<p class="feed-empty">Καμία καταχώριση για το έργο αυτόν τον μήνα' +
+             (hiddenByFilters ? ' με τα τρέχοντα φίλτρα' : '') + '.</p>';
+    } else {
+      /* diary: newest day first, entries within a day by time */
+      const byDate = {};
+      vis.forEach(e => { (byDate[e.date] = byDate[e.date] || []).push(e); });
+      Object.keys(byDate).sort().reverse().forEach(iso => {
+        const d = parseYmd(iso);
+        const list = byDate[iso].sort((a,b) => a.time < b.time ? -1 : 1);
+        html += '<h3 class="jdate">' + DAYS_FULL[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS_GEN[d.getMonth()] +
+                '<span class="cnt">' + plur(list.length, 'καταχώριση', 'καταχωρίσεις') + '</span></h3>';
+        list.forEach(e => { html += entryHTML(e, ei++); });
+      });
+    }
+  } else {
+    const all = entriesOn(pn.date, false);
+    const vis = entriesOn(pn.date, true);
+    hiddenByFilters = all.length - vis.length;
+    if (!vis.length){
+      html = '<p class="feed-empty">Καμία καταχώριση αυτή την ημέρα' + (hiddenByFilters ? ' με τα τρέχοντα φίλτρα' : '') +
+             '. Προσθέστε μια γρήγορη σημείωση από την παρακάτω φόρμα.</p>';
+    } else {
+      vis.forEach(e => { html += entryHTML(e, ei++); });
+    }
+  }
+  if (hiddenByFilters > 0){
+    const hint = hiddenByFilters === 1 ? '1 καταχώριση κρύβεται' : hiddenByFilters + ' καταχωρίσεις κρύβονται';
+    html = '<div class="filterhint"><span>' + hint + ' από τα φίλτρα.</span>' +
+           '<button type="button" id="hintReset">Εμφάνιση όλων</button></div>' + html;
+  }
+  $('#pFeed').innerHTML = html;
+}
+
+function buildAddForm(){
+  const pn = state.panel;
+  if (!pn) return;
+  const { y, m } = curYM();
+  let defDate;
+  if (pn.mode === 'day') defDate = pn.date;
+  else defDate = sameYM(TODAY_ISO, y, m) ? TODAY_ISO : y + '-' + pad2(m+1) + '-01';
+  const defPid = pn.mode === 'project' ? pn.pid : (state.projFilter !== 'all' ? state.projFilter : PROJECTS[0].id);
+
+  let opts = '';
+  PROJECTS.forEach(p => {
+    opts += '<option value="' + p.id + '"' + (p.id === defPid ? ' selected' : '') + '>' + esc(p.short) + '</option>';
+  });
+  $('#pAdd').innerHTML =
+    '<div class="qa-lbl">' + ICO.note + 'Γρήγορη σημείωση</div>' +
+    '<input type="text" id="qaText" maxlength="140" placeholder="Γρήγορη σημείωση…" aria-label="Κείμενο σημείωσης">' +
+    '<div class="qa-row">' +
+    '<label class="qa-fld">Ημερομηνία<input type="date" id="qaDate" value="' + defDate + '" min="' + ymd(windowStart) + '" max="' + ymd(windowEnd) + '"></label>' +
+    '<label class="qa-fld">Έργο<select id="qaProj">' + opts + '</select></label>' +
+    '<button type="submit" class="btn qa-btn">Προσθήκη σημείωσης</button>' +
+    '</div>';
+}
+
+/* ---------------- Notes: add / delete ---------------- */
+function addNote(){
+  const txt = $('#qaText').value.trim();
+  if (!txt){ $('#qaText').focus(); toast('Γράψτε πρώτα το κείμενο της σημείωσης'); return; }
+  let iso = $('#qaDate').value;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) iso = ymd(TODAY);
+  const d = parseYmd(iso);
+  if (d < windowStart || d > windowEnd){ toast('Επιλέξτε ημερομηνία μέσα στο τρίμηνο'); return; }
+  const now = new Date();
+  NOTES.push({ id:'n' + Date.now(), pid:$('#qaProj').value, date:iso, time:pad2(now.getHours()) + ':' + pad2(now.getMinutes()), text:txt });
+  saveNotes();
+  renderCalendar();
+  buildFeed();
+  $('#qaText').value = '';
+  toast('Η σημείωση προστέθηκε — ' + d.getDate() + ' ' + MONTHS_GEN[d.getMonth()]);
+}
+function deleteNote(id){
+  NOTES = NOTES.filter(n => n.id !== id);
+  saveNotes();
+  renderCalendar();
+  buildFeed();
+  toast('Η σημείωση διαγράφηκε');
+}
+
+/* ---------------- AI month summary (simulated, live counts) ---------------- */
+function monthStats(pid, y, m){
+  /* IMPORTANT: unfiltered counts — the numbers must equal what the grid
+     shows for the visible month with filters off (brief non-negotiable) */
+  const evs = allEntries().filter(e => e.pid === pid && sameYM(e.date, y, m));
+  const st = { tasks:0, photoEntries:0, photos:0, trans:[], paid:0, pendTitles:[], deadlines:0, notes:0 };
+  evs.forEach(e => {
+    switch(e.type){
+      case 'task': st.tasks++; break;
+      case 'photo': st.photoEntries++; st.photos += e.count; break;
+      case 'phase': st.trans.push(e); break;
+      case 'payment': if (e.status === 'paid') st.paid++; else st.pendTitles.push(e.title); break;
+      case 'deadline': st.deadlines++; break;
+      case 'note': st.notes++; break;
+    }
+  });
+  st.total = evs.length;
+  return st;
+}
+
+function projectParagraph(p, y, m, withMonth){
+  const st = monthStats(p.id, y, m);
+  const lead = withMonth ? 'Τον ' + MONTHS_ACC[m] + ' ' + p.loc : cap(p.loc);
+  const s = [];
+  if (st.total === 0){
+    s.push(lead + ' δεν υπάρχουν καταχωρίσεις αυτόν τον μήνα.');
+  } else {
+    const bits = [];
+    if (st.tasks > 0) bits.push('καταχωρίστηκ' + (st.tasks === 1 ? 'ε' : 'αν') + ' ' + plur(st.tasks, 'εργασία', 'εργασίες'));
+    if (st.photos > 0) bits.push('προστέθηκ' + (st.photos === 1 ? 'ε' : 'αν') + ' ' + plur(st.photos, 'φωτογραφία', 'φωτογραφίες') +
+      (st.photoEntries > 1 ? ' (σε ' + st.photoEntries + ' καταχωρίσεις)' : ''));
+    s.push(bits.length ? lead + ' ' + bits.join(' και ') + '.' : lead + ' δεν καταχωρίστηκαν εργασίες ή φωτογραφίες.');
+    st.trans.forEach(tr => {
+      const d = parseYmd(tr.date);
+      s.push(d <= TODAY
+        ? 'Το έργο πέρασε στη φάση ' + tr.to + ' (Φάση: ' + tr.from + ' → ' + tr.to + ').'
+        : 'Το έργο περνά στη φάση ' + tr.to + ' στις ' + d.getDate() + ' ' + MONTHS_GEN[d.getMonth()] + ' (Φάση: ' + tr.from + ' → ' + tr.to + ').');
+    });
+    const pend = st.pendTitles.map(t => '«' + t + '»').join(', ');
+    if (st.paid > 0 && st.pendTitles.length)
+      s.push('Εξοφλήθηκ' + (st.paid === 1 ? 'ε' : 'αν') + ' ' + plur(st.paid, 'πληρωμή', 'πληρωμές') + '· εκκρεμ' + (st.pendTitles.length === 1 ? 'εί' : 'ούν') + ': ' + pend + '.');
+    else if (st.paid > 0)
+      s.push('Εξοφλήθηκ' + (st.paid === 1 ? 'ε' : 'αν') + ' ' + plur(st.paid, 'πληρωμή', 'πληρωμές') + '.');
+    else if (st.pendTitles.length)
+      s.push('Εκκρεμ' + (st.pendTitles.length === 1 ? 'εί' : 'ούν') + ': ' + pend + '.');
+    /* POLISH.md P2 item 1: colon reads more clearly than a bare run-on */
+    if (st.deadlines > 0) s.push('Σε παρακολούθηση: ' + plur(st.deadlines, 'προθεσμία', 'προθεσμίες') + '.');
+    if (st.notes > 0) s.push('Έχετε προσθέσει ' + plur(st.notes, 'σημείωση', 'σημειώσεις') + '.');
+  }
+  s.push('Τρέχουσα φάση: ' + phaseAt(p, TODAY) + '.');
+  return s.join(' ');
+}
+
+function buildSummaryParas(){
+  const { y, m } = curYM();
+  const pn = state.panel;
+  if (pn && pn.mode === 'project') return [projectParagraph(projById(pn.pid), y, m, true)];
+  const paras = [];
+  PROJECTS.forEach((p,i) => {
+    if (monthStats(p.id, y, m).total === 0) return;
+    paras.push(projectParagraph(p, y, m, paras.length === 0));
+  });
+  if (!paras.length) paras.push('Δεν υπάρχουν καταχωρίσεις σε κανένα έργο αυτόν τον μήνα.');
+  return paras;
+}
+
+function runAiSummary(){
+  if (aiBusy || !state.panel) return;
+  aiBusy = true;
+  const btn = $('#aiBtn');
+  const lbl = $('#aiBtnLabel');
+  const myToken = ++aiToken;
+  const reduced = REDUCED();
+  btn.disabled = true;
+  lbl.textContent = 'Σύνταξη σύνοψης…';
+  if (!reduced) btn.classList.add('shimmer');
+  const delay = reduced ? 400 : 600 + Math.random() * 300;   /* shimmer 600–900ms */
+
+  setTimeout(() => {
+    if (myToken !== aiToken){ return; }
+    btn.classList.remove('shimmer');
+    btn.disabled = false;
+    lbl.textContent = 'Σύνοψη μήνα με AI';
+    const { y, m } = curYM();
+    const paras = buildSummaryParas();
+    $('#aiOut').innerHTML =
+      '<div class="ai-card"><h3>' + ICO.sparkle + 'Σύνοψη μήνα με AI <span class="ai-tag">Προσομοίωση</span></h3>' +
+      '<div class="ai-month">' + MONTHS_NOM[m] + ' ' + y + '</div><div id="aiParas"></div>' +
+      '<p class="ai-note">Υπολογίζεται από όλες τις καταχωρίσεις του μήνα (χωρίς φίλτρα).</p></div>';
+    const holder = $('#aiParas');
+    if (reduced){
+      /* prefers-reduced-motion: no typing theater — render instantly */
+      paras.forEach(t => { const el = document.createElement('p'); el.textContent = t; holder.appendChild(el); });
+      aiBusy = false;
+      toast('Η σύνοψη του μήνα είναι έτοιμη');
+      return;
+    }
+    const els = paras.map(() => { const el = document.createElement('p'); holder.appendChild(el); return el; });
+    let pi = 0;
+    (function typeNext(){
+      if (myToken !== aiToken) return;
+      if (pi >= paras.length){ aiBusy = false; toast('Η σύνοψη του μήνα είναι έτοιμη'); return; }
+      const el = els[pi], full = paras[pi];
+      el.classList.add('typing');
+      let i = 0;
+      const iv = setInterval(() => {
+        if (myToken !== aiToken){ clearInterval(iv); return; }
+        i = Math.min(full.length, i + 3);
+        el.textContent = full.slice(0, i);
+        if (i >= full.length){
+          clearInterval(iv);
+          el.classList.remove('typing');
+          pi++;
+          typeNext();
+        }
+      }, 16);
+    })();
+  }, delay);
+}
+
+/* ---------------- Toast ---------------- */
+let toastTimer = null;
+function toast(msg){
+  $('#toastMsg').textContent = msg;
+  const t = $('#toast');
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+/* ---------------- Handlers ---------------- */
+$('#prevBtn').addEventListener('click', () => {
+  if (state.curIdx > 0){ state.curIdx--; state.expanded.clear(); renderCalendar(); }
+});
+$('#nextBtn').addEventListener('click', () => {
+  if (state.curIdx < 2){ state.curIdx++; state.expanded.clear(); renderCalendar(); }
+});
+$('#todayBtn').addEventListener('click', () => {
+  state.curIdx = 1;
+  state.expanded.clear();
+  renderCalendar();
+  const cell = document.querySelector('.cell.today');
+  if (cell){
+    cell.scrollIntoView({ block:'center', behavior: REDUCED() ? 'auto' : 'smooth' });
+    cell.classList.add('flash');
+    cell.addEventListener('animationend', () => cell.classList.remove('flash'), { once:true });
+  }
+});
+
+$('#projChips').addEventListener('click', ev => {
+  const b = ev.target.closest('.fchip');
+  if (!b) return;
+  const pid = b.dataset.pid;
+  if (pid === 'all' || state.projFilter === pid){
+    state.projFilter = 'all';           /* deselect → back to all projects */
+  } else {
+    state.projFilter = pid;
+    syncFilterUI();
+    renderCalendar();
+    openPanel({ mode:'project', pid }); /* chip tap opens the project diary */
+    return;
+  }
+  syncFilterUI();
+  renderCalendar();
+});
+
+$('#typeChips').addEventListener('click', ev => {
+  const b = ev.target.closest('.fchip');
+  if (!b) return;
+  const t = b.dataset.type;
+  if (state.typeFilter.has(t)) state.typeFilter.delete(t); else state.typeFilter.add(t);
+  syncFilterUI();
+  renderCalendar();
+});
+
+$('#clearFilters').addEventListener('click', () => {
+  state.projFilter = 'all';
+  state.typeFilter = new Set(Object.keys(TYPES));
+  syncFilterUI();
+  renderCalendar();
+});
+
+$('#grid').addEventListener('click', ev => {
+  const more = ev.target.closest('.more');
+  if (more){
+    ev.stopPropagation();
+    const iso = more.dataset.iso;
+    if (state.expanded.has(iso)) state.expanded.delete(iso); else state.expanded.add(iso);
+    renderCalendar();
+    return;
+  }
+  const cell = ev.target.closest('.cell');
+  if (cell && !cell.classList.contains('out')) openPanel({ mode:'day', date:cell.dataset.iso });
+});
+$('#grid').addEventListener('keydown', ev => {
+  if (ev.key !== 'Enter' && ev.key !== ' ') return;
+  const cell = ev.target.closest('.cell');
+  if (cell && !cell.classList.contains('out')){
+    ev.preventDefault();
+    openPanel({ mode:'day', date:cell.dataset.iso });
+  }
+});
+
+$('#panel').addEventListener('click', ev => {
+  if (ev.target.closest('#pClose')){ closePanel(); return; }
+  if (ev.target.closest('#aiBtn')){ runAiSummary(); return; }
+  const del = ev.target.closest('.n-del');
+  if (del){ deleteNote(del.dataset.id); return; }
+  if (ev.target.closest('#hintReset')){
+    state.projFilter = state.panel && state.panel.mode === 'project' ? state.panel.pid : 'all';
+    state.typeFilter = new Set(Object.keys(TYPES));
+    syncFilterUI();
+    renderCalendar();
+    buildFeed();
+    if (state.panel && state.panel.mode === 'day') buildPanel();
+  }
+});
+$('#panel').addEventListener('submit', ev => { ev.preventDefault(); addNote(); });
+$('#overlay').addEventListener('click', closePanel);
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape') closePanel(); });
+
+/* ---------------- Init ---------------- */
+loadNotes();
+buildFilters();
+syncFilterUI();
+renderCalendar();
+</script>
+</body>
+</html>

@@ -1,0 +1,1702 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Δημιουργός Προσφορών — LaFlow</title>
+<link rel="icon" href="data:,">
+<style>
+  /* ============================================================
+     LF-01 — ΔΗΜΙΟΥΡΓΟΣ ΠΡΟΣΦΟΡΩΝ (offer drafter) · LaFlow track
+     REDESIGN — "Το Γραφείο Μελετών" (the drafting-room)
+     Visual concept: the left/middle panels are a lit, paper-and-ledger
+     work desk (cream); the right panel is a dark "stage" that presents
+     the finished A4 document like a lit sheet on a drawing table —
+     because this tool's whole job is to produce a physical document.
+     Same tested interaction logic as the original build; this file
+     only changes how it looks and how the 3 panels behave on phones.
+     Offline, zero network deps, Greek UI. Fonts: local fallback only.
+     Print CSS emits just the A4 sheet.
+     ============================================================ */
+  :root{
+    /* ---- brand tokens (fixed, do not invent new hues) ---- */
+    --forest-deep:#12302a;
+    --forest:#1a3c34;
+    --forest-mid:#20493e;
+    --sage:#8a9a5b;
+    --sage-light:#a3b18a;
+    --cream:#faf6ee;
+    --cream-alt:#f3eee1;
+    --ink:#233028;
+    --ink-soft:#4d5b50;
+    --terracotta:#bb6b3d;
+    --terracotta-deep:#a05526;
+    --gold:#b59445;
+    --gold-deep:#8a6d2a;
+    --line:rgba(26,60,52,.14);
+    --line-strong:rgba(26,60,52,.26);
+    --line-on-dark:rgba(250,246,238,.16);
+    --paper:#fffdf7;
+    --danger:#9c3f2b;
+
+    --serif:'Cormorant Garamond','Times New Roman',Georgia,serif;
+    --sans:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+
+    /* editorial/ledger shape language: flatter than generic SaaS */
+    --r-sm:6px; --r-md:8px; --r-lg:10px; --r-xl:13px; --r-pill:999px;
+
+    --fs-2xs:12.5px; --fs-xs:13.5px; --fs-sm:14.5px; --fs-md:17px; --fs-lg:19px;
+
+    --topbar-h:78px;
+    --mnav-h:0px;
+
+    --shadow-card:0 1px 2px rgba(18,48,42,.06),0 4px 14px rgba(18,48,42,.07);
+    --shadow-card-lift:0 3px 8px rgba(18,48,42,.10),0 14px 30px rgba(18,48,42,.12);
+    --shadow-sheet:0 10px 24px rgba(4,12,10,.4),0 34px 80px rgba(4,12,10,.5),0 0 0 1px rgba(181,148,69,.16);
+
+    /* fine paper grain (dark specks) for light surfaces */
+    --grain-dark:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+    /* fine grain (light specks) for the dark stage */
+    --grain-light:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:var(--sans);background:var(--cream);color:var(--ink);
+    line-height:1.5;-webkit-font-smoothing:antialiased;font-size:16px;
+    background-image:var(--grain-dark);
+  }
+  ::selection{background:var(--sage-light);color:var(--forest-deep)}
+  button{font-family:inherit;cursor:pointer;touch-action:manipulation}
+  input,select{font-family:inherit}
+  .serif{font-family:var(--serif)}
+  :focus-visible{outline:3px solid var(--gold);outline-offset:2px;border-radius:4px}
+
+  /* ============ TOP BAR — the "letterhead" ============ */
+  .topbar{
+    height:var(--topbar-h);background:var(--forest-deep);color:var(--cream);
+    display:flex;align-items:center;gap:20px;padding:0 26px;
+    border-bottom:3px solid var(--gold);position:relative;z-index:120;
+  }
+  .brand{display:flex;align-items:center;gap:13px;flex:none}
+  .brand .mark{width:46px;height:46px;flex:none;filter:drop-shadow(0 2px 5px rgba(0,0,0,.35))}
+  .brand .mark svg{width:100%;height:100%;display:block}
+  .brand .nm{font-family:var(--serif);font-weight:600;font-size:28px;line-height:1;color:var(--cream);letter-spacing:.01em}
+  .brand .nm b{color:var(--gold);font-weight:600}
+  .topbar .div{width:1px;align-self:stretch;margin:14px 0;background:var(--line-on-dark);flex:none}
+  .topbar .feat{min-width:0}
+  .topbar .feat h1{font-family:var(--serif);font-weight:600;font-size:23px;line-height:1.1;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .topbar .feat p{font-size:13.5px;color:var(--sage-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-style:italic;font-family:var(--serif)}
+  .topbar .spacer{flex:1}
+  .topbar .demo-tag{
+    flex:none;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);
+    border:1px solid rgba(181,148,69,.55);padding:7px 13px;border-radius:var(--r-pill);white-space:nowrap;
+    background:rgba(181,148,69,.08);
+  }
+
+  /* ============ APP LAYOUT ============ */
+  .workspace{min-width:0}
+  .pane{overflow-y:auto;min-width:0;-webkit-overflow-scrolling:touch}
+  @media(min-width:1180px){
+    .workspace{display:grid;grid-template-columns:334px minmax(408px,478px) 1fr;height:calc(100vh - var(--topbar-h))}
+    .pane{display:block !important;height:100%}
+  }
+  @media(max-width:1179px){
+    .workspace{display:block;height:calc(100vh - var(--topbar-h));position:relative}
+    .pane{display:none;height:100%}
+    .pane.pane-visible{display:block}
+  }
+  @media(max-width:1179px) and (prefers-reduced-motion:no-preference){
+    .pane.pane-visible{animation:paneIn .22s ease both}
+  }
+  @keyframes paneIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  /* ============ MOBILE NAV (bottom tab bar — replaces drawer) ============ */
+  .mobile-nav{display:none}
+  @media(max-width:1179px){
+    :root{--mnav-h:68px}
+    .mobile-nav{
+      display:flex;position:fixed;left:0;right:0;bottom:0;z-index:200;
+      background:var(--forest-deep);border-top:1px solid rgba(181,148,69,.4);
+      padding:5px 6px calc(5px + env(safe-area-inset-bottom,0px));
+      box-shadow:0 -8px 22px rgba(0,0,0,.28);
+    }
+    .mobile-nav button{
+      flex:1;min-height:54px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+      background:transparent;border:none;border-radius:var(--r-md);color:var(--sage-light);
+      font-size:11.5px;font-weight:700;position:relative;
+    }
+    .mobile-nav button svg{width:21px;height:21px}
+    .mobile-nav button[aria-current="page"]{color:var(--cream)}
+    .mobile-nav button[aria-current="page"]::before{
+      content:'';position:absolute;top:-6px;left:50%;transform:translateX(-50%);
+      width:26px;height:3px;border-radius:3px;background:var(--gold);
+    }
+    .mnav-badge{
+      position:absolute;top:2px;right:calc(50% - 24px);min-width:16px;height:16px;padding:0 4px;
+      border-radius:999px;background:var(--gold);color:var(--forest-deep);font-size:10px;font-weight:800;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .mnav-badge[hidden]{display:none}
+  }
+
+  /* ============ 1. CATALOG PANEL — "specimen board" ============ */
+  .catalog{background:var(--cream-alt);border-right:1px solid var(--line);padding:20px 17px calc(36px + var(--mnav-h))}
+  .cart-badge{
+    display:flex;align-items:center;gap:10px;background:var(--forest);color:var(--cream);
+    border-radius:var(--r-md);padding:11px 14px;margin-bottom:16px;font-size:15px;box-shadow:var(--shadow-card);
+  }
+  .cart-badge svg{width:19px;height:19px;color:var(--sage-light);flex:none}
+  .cart-badge b{font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+  .cart-badge .sep{opacity:.45}
+
+  /* "index-tab" category switch — folder-tab metaphor */
+  .tabbar{display:flex;gap:4px;margin-bottom:14px;border-bottom:2px solid var(--forest);padding:0 2px}
+  .tabbar button{
+    flex:1;min-height:46px;border:1.5px solid var(--line-strong);border-bottom:none;border-radius:var(--r-md) var(--r-md) 0 0;
+    background:#fff;color:var(--ink-soft);font-weight:700;font-size:13.5px;padding:6px 3px;line-height:1.2;
+    position:relative;top:2px;transition:top .12s,background .12s,color .12s;
+  }
+  .tabbar button:hover{color:var(--forest)}
+  .tabbar button.active{background:var(--forest);border-color:var(--forest);color:#fff;top:0;box-shadow:0 -3px 10px rgba(18,48,42,.18)}
+
+  .search-box{position:relative;margin-bottom:11px}
+  .search-box input{
+    width:100%;min-height:46px;padding:10px 14px 10px 40px;border:1.5px solid var(--line-strong);
+    border-radius:var(--r-md);background:#fff;font-size:15.5px;color:var(--ink);outline:none;transition:border-color .15s,box-shadow .15s;
+  }
+  .search-box input::placeholder{color:#8b968c}
+  .search-box input:focus{border-color:var(--forest);box-shadow:0 0 0 3px rgba(26,60,52,.14)}
+  .search-box svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:#8b968c;pointer-events:none}
+
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:15px}
+  .chips button{
+    min-height:44px;padding:8px 15px;border-radius:var(--r-pill);border:1.5px solid var(--line-strong);
+    background:#fff;color:var(--ink-soft);font-size:13.5px;font-weight:700;transition:all .14s;
+  }
+  .chips button:hover{border-color:var(--sage);color:var(--forest)}
+  .chips button.active{background:var(--sage);border-color:var(--sage);color:#fff}
+
+  .cat-count{font-size:13px;color:var(--ink-soft);margin:0 2px 10px;font-weight:600}
+  .specimen-list{display:flex;flex-direction:column;gap:10px}
+
+  /* item card: framed "specimen" with a category accent rule */
+  .specimen{
+    display:flex;gap:12px;align-items:center;background:#fff;border:1px solid var(--line);
+    border-left:4px solid var(--line-strong);border-radius:var(--r-lg);padding:10px;box-shadow:var(--shadow-card);
+    transition:box-shadow .15s,transform .15s;
+  }
+  .specimen:hover{box-shadow:var(--shadow-card-lift);transform:translateY(-1px)}
+  #itemsList[data-tab="plants"] .specimen{border-left-color:var(--sage)}
+  #itemsList[data-tab="materials"] .specimen{border-left-color:var(--terracotta)}
+  #itemsList[data-tab="hardscape"] .specimen{border-left-color:var(--gold)}
+  .specimen .vis{
+    width:58px;height:58px;border-radius:var(--r-md);flex:none;background:var(--cream-alt);
+    display:grid;place-items:center;overflow:hidden;border:1px solid var(--line-strong);
+  }
+  .specimen .vis svg{width:46px;height:46px}
+  .specimen .vis.tex{background-size:auto;border:1px solid rgba(0,0,0,.1)}
+  .specimen .info{flex:1;min-width:0}
+  .specimen .info h4{font-size:16px;font-weight:700;color:var(--forest);line-height:1.2}
+  .specimen .info .sub{font-size:12.5px;color:var(--ink-soft);margin-top:1px;line-height:1.3}
+  .specimen .info .sub i{font-style:italic}
+  .specimen .info .pr{font-size:13.5px;color:var(--gold-deep);font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
+  .specimen .act{flex:none}
+
+  .add-btn{
+    min-height:44px;min-width:44px;padding:8px 14px;border:none;border-radius:var(--r-md);
+    background:var(--forest);color:#fff;font-weight:700;font-size:14px;display:inline-flex;align-items:center;gap:6px;
+    transition:background .15s,transform .12s;
+  }
+  .add-btn svg{width:15px;height:15px}
+  .add-btn:hover{background:var(--forest-deep);transform:translateY(-1px)}
+
+  /* circular "dial" stepper */
+  .stepper{display:flex;align-items:center;gap:8px}
+  .stepper button{
+    width:36px;height:36px;min-width:36px;border-radius:50%;display:grid;place-items:center;line-height:1;
+    font-size:19px;font-weight:700;transition:background .13s,transform .12s;
+  }
+  .stepper button[data-step="1"],.stepper button[data-lstep="1"]{background:var(--forest);color:#fff;border:none}
+  .stepper button[data-step="1"]:hover,.stepper button[data-lstep="1"]:hover{background:var(--forest-deep);transform:scale(1.06)}
+  .stepper button[data-step="-1"],.stepper button[data-lstep="-1"]{background:#fff;color:var(--forest);border:1.5px solid var(--sage)}
+  .stepper button[data-step="-1"]:hover,.stepper button[data-lstep="-1"]:hover{background:var(--cream-alt)}
+  .stepper button:disabled{opacity:.35;cursor:default;transform:none}
+  .stepper .qv{min-width:26px;text-align:center;font-weight:800;font-size:16px;color:var(--forest);font-variant-numeric:tabular-nums}
+
+  .cat-empty{background:#fff;border:1.5px dashed var(--line-strong);border-radius:var(--r-lg);padding:30px 18px;text-align:center;color:var(--ink-soft);font-size:14.5px}
+
+  /* ============ 2. COMPOSER PANEL — "the ledger" ============ */
+  .composer{
+    background:var(--cream);border-right:1px solid var(--line);
+    padding:20px 20px calc(18px + var(--mnav-h));font-size:var(--fs-md);
+    counter-reset:secnum;position:relative;
+  }
+  .comp-label{font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:7px}
+  .projsel{
+    width:100%;min-height:52px;font-size:17px;font-weight:700;color:var(--forest);
+    border:1.5px solid var(--line-strong);border-radius:var(--r-md);background:#fff;padding:10px 40px 10px 14px;
+    outline:none;appearance:none;cursor:pointer;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%231a3c34' stroke-width='2.4'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 13px center;
+  }
+  .projsel:focus{border-color:var(--forest);box-shadow:0 0 0 3px rgba(26,60,52,.14)}
+  .dossier{
+    background:#fff;border:1px solid var(--line);border-radius:var(--r-md);
+    padding:14px 15px;margin-top:10px;box-shadow:var(--shadow-card);position:relative;overflow:hidden;
+  }
+  .dossier::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--gold)}
+  .dossier .row1{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .dossier .client{font-family:var(--serif);font-weight:700;font-size:19px;color:var(--forest)}
+  .phase-chip{
+    font-size:12px;font-weight:800;letter-spacing:.07em;color:#fff;background:var(--terracotta-deep);
+    padding:5px 12px;border-radius:var(--r-pill);white-space:nowrap;text-transform:uppercase;
+  }
+  .dossier .meta{font-size:14.5px;color:var(--ink-soft);margin-top:4px}
+  .dossier .refrow{display:flex;gap:14px;flex-wrap:wrap;font-size:13.5px;color:var(--ink-soft);margin-top:8px;padding-top:8px;border-top:1px dashed var(--line-strong)}
+  .dossier .refrow b{color:var(--gold-deep);font-variant-numeric:tabular-nums}
+
+  .comp-tools{display:flex;gap:9px;margin-top:14px}
+  .btn{
+    min-height:48px;border-radius:var(--r-md);border:none;font-weight:700;font-size:15.5px;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;
+    transition:transform .12s,background .15s,color .15s,border-color .15s;position:relative;overflow:hidden;
+  }
+  .btn svg{width:17px;height:17px;flex:none}
+  .btn:active{transform:translateY(1px)}
+  .btn-sage{flex:1;background:var(--sage);color:#fff}
+  .btn-sage:hover{background:#78894c}
+  .btn-ghost{background:transparent;color:var(--ink-soft);border:1.5px solid var(--line-strong)}
+  .btn-ghost:hover{color:var(--forest);border-color:var(--forest)}
+  .btn[disabled]{opacity:.65;cursor:wait}
+  .btn.shimmer::after{
+    content:'';position:absolute;inset:0;
+    background:linear-gradient(105deg,transparent 25%,rgba(255,255,255,.4) 50%,transparent 75%);
+    animation:shim 1.1s linear infinite;
+  }
+  @keyframes shim{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+
+  /* AI suggestions panel */
+  .suggest{
+    margin-top:13px;background:#fff;border:1.5px solid var(--sage);border-radius:var(--r-lg);
+    padding:14px 14px 12px;box-shadow:var(--shadow-card);
+  }
+  .suggest .s-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+  .suggest .s-head h3{font-family:var(--serif);font-size:17px;font-weight:700;color:var(--forest);display:flex;align-items:center;gap:8px}
+  .suggest .s-head h3 svg{width:18px;height:18px;color:var(--sage)}
+  .suggest .s-close{min-width:44px;min-height:44px;border:none;background:transparent;color:var(--ink-soft);border-radius:8px;display:grid;place-items:center}
+  .suggest .s-close:hover{background:var(--cream-alt);color:var(--forest)}
+  .suggest .s-close svg{width:18px;height:18px}
+  .sug-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px dashed var(--line-strong)}
+  .sug-row .inf{flex:1;min-width:0}
+  .sug-row .nm{font-size:15.5px;font-weight:700;color:var(--ink)}
+  .sug-row .nm span{color:var(--ink-soft);font-weight:500;font-size:13.5px}
+  .sug-why{
+    display:inline-block;font-size:12.5px;color:var(--forest);background:var(--cream-alt);
+    border:1px solid var(--line);border-radius:var(--r-pill);padding:3px 10px;margin-top:4px;line-height:1.35;
+  }
+  .sug-add{
+    min-height:44px;min-width:44px;flex:none;border:none;border-radius:var(--r-md);background:var(--forest);
+    color:#fff;font-weight:700;font-size:14px;padding:8px 14px;display:inline-flex;align-items:center;gap:6px;
+  }
+  .sug-add svg{width:14px;height:14px}
+  .sug-add:hover{background:var(--forest-deep)}
+  .sug-empty{font-size:14.5px;color:var(--ink-soft);padding:8px 2px}
+
+  /* line sections — "ledger" groups, numbered via CSS counters */
+  .sec{margin-top:24px;counter-increment:secnum;position:relative;padding-left:14px}
+  .sec::before{content:'';position:absolute;left:0;top:2px;bottom:4px;width:1px;background:var(--line-strong)}
+  .sec-h{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+  .sec-h h2{font-family:var(--serif);font-weight:600;font-size:23px;color:var(--forest);display:flex;align-items:baseline;gap:8px}
+  .sec-h h2::before{
+    content:counter(secnum,decimal-leading-zero);font-family:var(--sans);font-size:12.5px;font-weight:800;
+    letter-spacing:.06em;color:var(--gold-deep);background:var(--cream-alt);border:1px solid var(--line-strong);
+    border-radius:var(--r-sm);padding:2px 6px;
+  }
+  .sec-h .cnt{font-size:13.5px;color:var(--ink-soft);font-weight:600}
+  .sec-h .ln{flex:1;height:1px;background:var(--line-strong)}
+
+  #compBody[data-sec-count="1"] .sec{margin-top:8px}
+
+  .ledger-line{
+    background:#fff;border:1px solid var(--line);border-radius:var(--r-lg);
+    padding:13px 14px;margin-bottom:9px;box-shadow:var(--shadow-card);
+  }
+  .sec[data-sec="plants"] .ledger-line{border-left:3px solid var(--sage)}
+  .sec[data-sec="materials"] .ledger-line{border-left:3px solid var(--terracotta)}
+  .sec[data-sec="hardscape"] .ledger-line{border-left:3px solid var(--gold)}
+  .ledger-line .l-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .ledger-line .l-name{font-size:17px;font-weight:700;color:var(--ink);line-height:1.25}
+  .ledger-line .l-unitinfo{font-size:14.5px;color:var(--ink-soft);margin-top:1px}
+  .l-remove{
+    min-width:44px;min-height:44px;flex:none;border:none;background:transparent;color:#8b968c;
+    border-radius:8px;display:grid;place-items:center;transition:all .14s;
+  }
+  .l-remove:hover{color:var(--danger);background:#f5e6df}
+  .l-remove svg{width:19px;height:19px}
+  .ledger-line .l-ctl{display:flex;align-items:flex-end;gap:12px;margin-top:10px;flex-wrap:wrap}
+  .fld{display:flex;flex-direction:column;gap:4px}
+  .fld .fl{font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);font-weight:700}
+  .priceinp{
+    width:106px;min-height:48px;font-size:17px;font-weight:700;color:var(--ink);text-align:right;
+    padding:8px 10px;border:1.5px solid var(--line-strong);border-radius:var(--r-md);background:#fff;outline:none;
+    font-variant-numeric:tabular-nums;
+  }
+  .priceinp:focus{border-color:var(--forest);box-shadow:0 0 0 3px rgba(26,60,52,.14)}
+  .ledger-line .l-total{margin-left:auto;text-align:right}
+  .ledger-line .l-total .tv{font-size:18.5px;font-weight:800;color:var(--forest);font-variant-numeric:tabular-nums}
+  .ledger-line .l-total .tu{font-size:12px;color:var(--ink-soft)}
+
+  /* labor row */
+  .labor{
+    display:flex;align-items:center;gap:12px;background:var(--cream-alt);border:1px dashed var(--line-strong);
+    border-radius:var(--r-lg);padding:11px 14px;margin-bottom:9px;flex-wrap:wrap;
+  }
+  .labor.off{opacity:.62}
+  .labor .lb-name{font-size:16.5px;font-weight:700;color:var(--ink);flex:1;min-width:150px}
+  .labor .lb-sub{display:block;font-size:13.5px;color:var(--ink-soft);font-weight:500}
+  .switch{position:relative;display:inline-flex;align-items:center;flex:none;cursor:pointer;min-height:44px}
+  .switch input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+  .switch .trk{width:54px;height:30px;border-radius:999px;background:#cfd6c8;transition:background .18s;position:relative;flex:none}
+  .switch .trk::after{
+    content:'';position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .18s;
+  }
+  .switch input:checked + .trk{background:var(--forest)}
+  .switch input:checked + .trk::after{transform:translateX(24px)}
+  .switch input:focus-visible + .trk{outline:3px solid var(--gold);outline-offset:2px}
+  .laborinp{width:96px}
+
+  /* totals card — sticky "ledger close" so the grand total is always visible */
+  .totals{
+    position:sticky;bottom:0;margin-top:22px;background:var(--paper);border:1px solid var(--line-strong);
+    border-top:4px solid var(--forest);border-radius:var(--r-lg) var(--r-lg) 0 0;padding:15px 18px 16px;
+    box-shadow:0 -10px 22px rgba(18,48,42,.12);
+  }
+  .trow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;font-size:17px}
+  .trow .tl{color:var(--ink-soft)}
+  .trow .tv{font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  .trow.discount .tl,.trow.vat .tl{display:flex;align-items:center;gap:10px;color:var(--ink)}
+  .discinp{
+    width:76px;min-height:48px;font-size:17px;font-weight:700;text-align:right;color:var(--ink);
+    padding:8px 8px;border:1.5px solid var(--line-strong);border-radius:var(--r-md);outline:none;font-variant-numeric:tabular-nums;
+  }
+  .discinp:focus{border-color:var(--forest);box-shadow:0 0 0 3px rgba(26,60,52,.14)}
+  .trow .neg{color:var(--terracotta-deep)}
+  .grand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:8px;padding-top:13px;border-top:2px solid var(--forest)}
+  .grand .gl{font-size:14.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;color:var(--forest)}
+  .grand .gv{font-family:var(--serif);font-size:35px;font-weight:600;color:var(--forest);font-variant-numeric:tabular-nums}
+  .comp-empty{background:#fff;border:1.5px dashed var(--line-strong);border-radius:var(--r-lg);padding:30px 20px;text-align:center;color:var(--ink-soft);font-size:16px;margin-top:20px}
+
+  /* ============ 3. PREVIEW PANEL — the dark "stage" ============ */
+  .preview{
+    background:var(--forest-deep);padding:20px 26px calc(50px + var(--mnav-h));position:relative;isolation:isolate;
+  }
+  .preview::before{
+    content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 8%, rgba(163,177,138,.14), transparent 65%),
+      var(--grain-light);
+  }
+  .stage-bar{
+    position:relative;z-index:1;display:flex;align-items:center;gap:10px;flex-wrap:wrap;max-width:780px;margin:0 auto 18px;
+    background:rgba(250,246,238,.06);border:1px solid var(--line-on-dark);border-radius:var(--r-lg);
+    padding:9px 12px;backdrop-filter:blur(6px);
+  }
+  .stage-bar .sb-label{font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--sage-light);font-weight:700;margin-right:auto}
+  .tone{display:inline-flex;background:#fff;border:1.5px solid var(--line-strong);border-radius:var(--r-md);padding:3px;gap:3px}
+  .tone button{
+    min-height:44px;padding:8px 16px;border:none;border-radius:6px;background:transparent;
+    color:var(--ink-soft);font-weight:700;font-size:14.5px;transition:all .14s;
+  }
+  .tone button.active{background:var(--forest);color:#fff}
+  .btn-ai{background:var(--terracotta-deep);color:#fff}
+  .btn-ai:hover{background:#8f4a1f}
+  .btn-print{background:var(--gold-deep);color:#fff}
+  .btn-print:hover{background:#75581f}
+
+  /* THE A4 SHEET — lit paper on the dark desk */
+  .sheet{
+    position:relative;z-index:1;max-width:780px;margin:0 auto;background:var(--paper);border-radius:3px;
+    box-shadow:var(--shadow-sheet);padding:56px 62px 48px;color:var(--ink);
+    font-size:14.5px;line-height:1.55;aspect-ratio:210/297;height:auto;overflow:visible;
+    counter-reset:shsecnum;
+  }
+  @supports not (aspect-ratio:210/297){ .sheet{min-height:1050px} }
+
+  .sh-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding-bottom:18px;border-bottom:2px solid var(--forest)}
+  .sh-brand .wordmark{display:flex;align-items:center;gap:11px}
+  .sh-brand .wm-mark{width:42px;height:42px;flex:none}
+  .sh-brand .wm-mark svg{width:100%;height:100%;display:block}
+  .sh-brand .wm-t{font-family:var(--serif);font-weight:600;font-size:30px;color:var(--forest);line-height:1}
+  .sh-brand .wm-t b{color:var(--gold-deep);font-weight:600}
+  .sh-brand .wm-sub{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-soft);margin-top:7px}
+  .sh-meta{text-align:right;font-size:12.5px;color:var(--ink-soft);line-height:1.75;flex:none}
+  .sh-meta .doc{font-family:var(--serif);font-size:21px;color:var(--forest);font-weight:600;margin-bottom:2px}
+  .sh-meta .ref{font-weight:700;color:var(--gold-deep);font-variant-numeric:tabular-nums}
+  .sh-meta b{color:var(--ink);font-weight:600}
+
+  .sh-title{margin:22px 0 4px}
+  .sh-title .kick{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-deep);font-weight:700}
+  .sh-title h2{font-family:var(--serif);font-weight:600;font-size:33px;color:var(--forest);line-height:1.12;margin-top:4px}
+  .sh-title .cl{font-size:14px;color:var(--ink-soft);margin-top:4px}
+  .sh-title .cl b{color:var(--ink);font-weight:600}
+
+  .sh-letter{margin-top:19px;padding:3px 0 4px 18px;border-left:2px solid var(--gold)}
+  .sh-letter p{font-family:var(--serif);font-size:17px;line-height:1.62;color:#2e3b31;margin-bottom:9px;max-width:64ch}
+  .sh-letter p:first-child{font-weight:700;font-size:18px}
+  .typing::after{
+    content:'';display:inline-block;width:2px;height:1em;background:var(--terracotta);
+    margin-left:2px;vertical-align:-2px;animation:blink .75s steps(1) infinite;
+  }
+  @keyframes blink{50%{opacity:0}}
+
+  .sh-sec{margin-top:24px;counter-increment:shsecnum}
+  .sh-sec .h{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+  .sh-sec .h h3{font-family:var(--serif);font-weight:600;font-size:22px;color:var(--forest);display:flex;align-items:baseline;gap:8px}
+  .sh-sec .h h3::before{
+    content:counter(shsecnum,decimal-leading-zero);font-family:var(--sans);font-size:11.5px;font-weight:800;
+    color:#fff;background:var(--forest);border-radius:var(--r-sm);padding:2px 6px;letter-spacing:.04em;
+  }
+  .sh-sec .h .ln{flex:1;height:1.5px;background:var(--gold);opacity:.6}
+  .sh-scope{font-size:13.5px;color:#3a463c;line-height:1.6;margin-bottom:10px;max-width:70ch}
+  .sh-table{width:100%;border-collapse:collapse}
+  .sh-table th{
+    font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;
+    text-align:left;padding:0 8px 7px 0;border-bottom:2px solid var(--gold);
+  }
+  .sh-table th.r{text-align:right;padding-right:0}
+  .sh-table td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:top}
+  .sh-table td.nm{font-weight:700;color:var(--forest)}
+  .sh-table td.nm .bot{display:block;font-size:11.5px;color:var(--ink-soft);font-weight:400;font-style:italic}
+  .sh-table td.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;padding-right:0}
+  .sh-table tr.labor-r td{color:var(--ink-soft);font-style:italic}
+  .sh-table tr.sec-sum td{border-bottom:none;background:var(--cream-alt);padding:9px 8px 9px 0;font-weight:800;color:var(--forest);font-size:13.5px}
+  .sh-table tr.sec-sum td:first-child{padding-left:8px;border-radius:4px 0 0 4px}
+  .sh-table tr.sec-sum td:last-child{border-radius:0 4px 4px 0}
+
+  .sh-totals{margin-top:26px;display:flex;justify-content:flex-end}
+  .sh-totals .box{min-width:290px}
+  .sh-totals .r{display:flex;justify-content:space-between;gap:26px;padding:5px 0;font-size:13.5px;color:var(--ink-soft)}
+  .sh-totals .r .v{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+  .sh-totals .r .v.neg{color:var(--terracotta-deep)}
+  .sh-totals .gr{display:flex;justify-content:space-between;align-items:baseline;gap:26px;margin-top:7px;padding-top:10px;border-top:2px solid var(--forest)}
+  .sh-totals .gr .k{font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:var(--forest)}
+  .sh-totals .gr .v{font-family:var(--serif);font-size:28px;font-weight:600;color:var(--forest);font-variant-numeric:tabular-nums}
+  .sh-vat-note{font-size:11.5px;color:var(--ink-soft);text-align:right;margin-top:5px}
+
+  .sh-terms{margin-top:26px;padding:13px 16px;background:var(--cream-alt);border-left:3px solid var(--gold);border-radius:6px}
+  .sh-terms p{font-size:12px;color:var(--ink-soft);line-height:1.6}
+  .sh-terms b{color:var(--ink)}
+  .sh-sign{margin-top:34px;display:flex;justify-content:space-between;gap:40px}
+  .sh-sign .s{flex:1;max-width:230px}
+  .sh-sign .s .sln{height:1px;background:var(--line-strong);margin-bottom:6px;margin-top:42px}
+  .sh-sign .s .slb{font-size:11.5px;color:var(--ink-soft)}
+  .sh-foot{margin-top:30px;padding-top:12px;border-top:1px solid var(--gold);display:flex;justify-content:space-between;gap:16px;font-size:11px;color:var(--ink-soft);flex-wrap:wrap}
+  .sh-foot b{color:var(--forest);font-weight:600}
+  .sh-empty{font-size:14px;color:var(--ink-soft);font-style:italic;padding:10px 0}
+
+  /* toast */
+  .toast{
+    position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(16px);z-index:300;
+    background:var(--forest-deep);color:#fff;font-weight:700;font-size:15px;padding:13px 20px;
+    border-radius:var(--r-md);box-shadow:0 10px 30px rgba(18,48,42,.35);display:flex;align-items:center;gap:10px;
+    opacity:0;visibility:hidden;transition:opacity .2s,transform .2s,visibility .2s;max-width:min(92vw,560px);
+    border:1px solid rgba(181,148,69,.4);
+  }
+  .toast.show{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+  @media(max-width:1179px){ .toast{bottom:calc(18px + var(--mnav-h))} }
+  .toast svg{width:17px;height:17px;color:var(--sage-light);flex:none}
+
+  /* ============ PHONE-WIDTH REFINEMENTS ============ */
+  @media(max-width:899px){
+    .topbar{gap:12px;padding:0 14px}
+    .topbar .div{display:none}
+  }
+  @media(max-width:559px){
+    .topbar{gap:10px;padding:0 12px}
+    .brand .nm{font-size:22px}
+    .brand .mark{width:38px;height:38px}
+    .topbar .feat h1{font-size:19px}
+    .topbar .feat p{font-size:12px}
+    .catalog{padding:16px 12px calc(32px + var(--mnav-h))}
+    .composer{padding:16px 12px calc(16px + var(--mnav-h))}
+    .preview{padding:14px 8px calc(40px + var(--mnav-h))}
+    .stage-bar{margin-bottom:12px}
+    /* A4 keeps its design width and is zoomed to fit its panel —
+       readable, no horizontal page scroll */
+    .sheet{width:560px;max-width:none;margin:0 auto;zoom:.58}
+  }
+  @media(max-width:359px){ .sheet{zoom:.48} }
+
+  /* prefers-reduced-motion: kill shimmer/typing-caret/pane-fade animation;
+     everything still works, just without motion (JS also skips the
+     typing theater and renders AI text instantly) */
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{
+      animation-duration:.01ms !important;animation-iteration-count:1 !important;
+      transition-duration:.01ms !important;scroll-behavior:auto !important;
+    }
+  }
+
+  /* ============ PRINT — emit ONLY the A4 document ============ */
+  @media print{
+    @page{size:A4;margin:13mm}
+    html,body{background:#fff !important;height:auto;background-image:none !important}
+    .topbar,.mobile-nav,.catalog,.composer,.stage-bar,.toast{display:none !important}
+    .workspace{display:block !important;height:auto}
+    .preview{display:block !important;padding:0;height:auto;overflow:visible;background:#fff !important}
+    .preview::before{display:none !important}
+    .composer{display:none !important}
+    .sheet{
+      max-width:none;width:100%;margin:0;border-radius:0;box-shadow:none;padding:0;
+      aspect-ratio:auto;background:#fff;zoom:1 !important;
+    }
+    .sh-head,.sh-title,.sh-totals,.sh-terms,.sh-sign,.sh-foot{break-inside:avoid}
+    .sh-table tr{break-inside:avoid}
+    .sh-sec .h{break-after:avoid}
+    .typing::after{display:none}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ TOP BAR ============ -->
+<header class="topbar">
+  <div class="brand">
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 48 48" fill="none">
+        <circle cx="24" cy="24" r="21" fill="#1a3c34"/>
+        <circle cx="24" cy="24" r="21" stroke="#b59445" stroke-width="1.5"/>
+        <circle cx="24" cy="24" r="16.5" stroke="#b59445" stroke-width="0.6" opacity="0.5"/>
+        <path d="M13 31c3.5 4 8 6.2 13 6.2" stroke="#a3b18a" stroke-width="1.3" stroke-linecap="round"/>
+        <path d="M14.3 28c2 .6 3.2 2.3 3 4.3M17 24.6c2.1.3 3.4 1.9 3.1 3.9M20 21.3c2 0 3.3 1.4 3.4 3.4" stroke="#a3b18a" stroke-width="1" stroke-linecap="round"/>
+        <path d="M35 31c-3.5 4-8 6.2-13 6.2" stroke="#a3b18a" stroke-width="1.3" stroke-linecap="round"/>
+        <path d="M33.7 28c-2 .6-3.2 2.3-3 4.3M31 24.6c-2.1.3-3.4 1.9-3.1 3.9M28 21.3c-2 0-3.3 1.4-3.4 3.4" stroke="#a3b18a" stroke-width="1" stroke-linecap="round"/>
+        <text x="24" y="21.5" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-weight="600" fill="#faf6ee">LF</text>
+      </svg>
+    </span>
+    <span class="nm">La<b>Flow</b></span>
+  </div>
+  <span class="div" aria-hidden="true"></span>
+  <div class="feat">
+    <h1>Δημιουργός Προσφορών</h1>
+    <p>Η προσφορά σας, έτοιμη σε λίγα λεπτά.</p>
+  </div>
+  <span class="spacer"></span>
+  <span class="demo-tag">Demo · Προσομοίωση AI</span>
+</header>
+
+<div class="workspace" id="workspace">
+
+  <!-- ============ 1. CATALOG ============ -->
+  <aside class="pane catalog" id="catalogPanel" data-view="catalog" aria-label="Κατάλογος ειδών">
+    <div class="cart-badge" aria-live="polite">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1.6"/><circle cx="19" cy="21" r="1.6"/><path d="M2.5 3h2l2.6 12.4a2 2 0 0 0 2 1.6h8.7a2 2 0 0 0 2-1.6L21.5 7H6"/></svg>
+      <span>Στην προσφορά: <b id="badgeCount">0 είδη</b><span class="sep"> · </span><b id="badgeTotal">0,00 €</b></span>
+    </div>
+    <div class="tabbar" role="tablist" aria-label="Κατηγορίες καταλόγου">
+      <button type="button" data-tab="plants" role="tab">Φυτά</button>
+      <button type="button" data-tab="materials" role="tab">Υλικά</button>
+      <button type="button" data-tab="hardscape" role="tab">Σκληρά δομικά</button>
+    </div>
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="search" type="search" placeholder="Αναζήτηση είδους…" aria-label="Αναζήτηση είδους" autocomplete="off">
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="Φίλτρα κατηγορίας"></div>
+    <div class="cat-count" id="catCount"></div>
+    <div class="specimen-list" id="itemsList"></div>
+  </aside>
+
+  <!-- ============ 2. COMPOSER ============ -->
+  <section class="pane composer" id="composerPanel" data-view="composer" aria-label="Σύνθεση προσφοράς">
+    <div class="comp-label">Έργο σε φάση προσφοράς</div>
+    <select class="projsel" id="projectSel" aria-label="Επιλογή έργου"></select>
+    <div class="dossier" id="projCard"></div>
+    <div class="comp-tools">
+      <button class="btn btn-sage" id="suggestBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M18.4 5.6l-2.1 2.1M21 12h-3M5.6 5.6l2.1 2.1M3 12h3M12 21a6 6 0 0 0 6-6c0-3-2-4-2-7H8c0 3-2 4-2 7a6 6 0 0 0 6 6Z"/></svg>
+        Πρότεινε είδη
+      </button>
+      <button class="btn btn-ghost" id="resetBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+        Επαναφορά
+      </button>
+    </div>
+    <div id="suggestWrap"></div>
+    <div id="compBody"></div>
+
+    <div class="totals" id="totalsCard">
+      <div class="trow"><span class="tl">Υποσύνολο</span><span class="tv" id="tSub">0,00 €</span></div>
+      <div class="trow discount">
+        <span class="tl">
+          <label for="discInp">Έκπτωση</label>
+          <input class="discinp" id="discInp" type="text" inputmode="decimal" aria-label="Ποσοστό έκπτωσης (0 έως 20)">
+          <span>%</span>
+        </span>
+        <span class="tv neg" id="tDiscAmt">−0,00 €</span>
+      </div>
+      <div class="trow vat">
+        <span class="tl">
+          <label class="switch">
+            <input type="checkbox" id="vatChk" aria-label="Εφαρμογή ΦΠΑ 24%">
+            <span class="trk"></span>
+          </label>
+          ΦΠΑ 24%
+        </span>
+        <span class="tv" id="tVat">0,00 €</span>
+      </div>
+      <div class="grand" aria-live="polite">
+        <span class="gl">Γενικό Σύνολο</span>
+        <span class="gv" id="tGrand">0,00 €</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. LIVE A4 PREVIEW ============ -->
+  <main class="pane preview" id="previewPanel" data-view="preview" aria-label="Προεπισκόπηση προσφοράς">
+    <div class="stage-bar">
+      <span class="sb-label">Ζωντανή προεπισκόπηση Α4</span>
+      <div class="tone" role="group" aria-label="Ύφος κειμένου">
+        <button type="button" data-tone="formal">Επίσημο</button>
+        <button type="button" data-tone="friendly">Φιλικό</button>
+      </div>
+      <button class="btn btn-ai" id="aiBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/><path d="M19 15l.9 2.4L22.3 18l-2.4.9L19 21.3l-.9-2.4-2.4-.9 2.4-.6Z"/></svg>
+        <span id="aiBtnLabel">Σύνταξη κειμένου με AI</span>
+      </button>
+      <button class="btn btn-print" id="printBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg>
+        Εκτύπωση / PDF
+      </button>
+    </div>
+    <article class="sheet" id="sheet"></article>
+  </main>
+</div>
+
+<!-- ============ MOBILE NAV — replaces the drawer + toggle-bar on phones ============ -->
+<nav class="mobile-nav" id="mobileNav" aria-label="Εναλλαγή προβολής">
+  <button type="button" data-view="catalog">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    <span>Κατάλογος</span>
+  </button>
+  <button type="button" data-view="composer">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>
+    <span>Σύνθεση</span>
+    <span class="mnav-badge" id="mnavBadge" hidden></span>
+  </button>
+  <button type="button" data-view="preview">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
+    <span>Προεπισκόπηση</span>
+  </button>
+</nav>
+
+<div class="toast" id="toast" role="status">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+/* ============================================================
+   LF-01 Δημιουργός Προσφορών — REDESIGN, same functional MVP.
+   State/logic ported unchanged from the shipped build (LOG.md):
+   3 seeded projects, each with its own persisted draft
+   (localStorage). Canned-AI text engine keyed off
+   (project type × item mix × tone) with shimmer + typing effect.
+   Only the mobile navigation model changed (bottom tab bar
+   replaces the old drawer + view-toggle bar) — see attachEvents().
+   All user copy Greek; code/comments English.
+   ============================================================ */
+
+/* ---------------- Catalog: 24 items, Attica-2026 indicative prices ---------------- */
+/* Plant icons = inline SVG; material/hardscape swatches = layered CSS textures. */
+const ICONS = {
+  olive:`<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M24 44V24" stroke="#5b4a32" stroke-width="2.5" stroke-linecap="round"/><path d="M24 32c-4-1-7-3-8-6M24 29c3-1 6-3 7-6" stroke="#5b4a32" stroke-width="2" stroke-linecap="round"/><ellipse cx="24" cy="15" rx="13" ry="10" fill="#a3b18a"/><ellipse cx="17" cy="18" rx="7" ry="5.5" fill="#8a9a5b"/><ellipse cx="31" cy="17" rx="7.5" ry="6" fill="#96a878"/><circle cx="21" cy="13" r="1.7" fill="#1a3c34"/><circle cx="29" cy="19" r="1.7" fill="#1a3c34"/><circle cx="26" cy="11" r="1.5" fill="#274d3d"/></svg>`,
+  laurel:`<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M24 44V20" stroke="#5b7050" stroke-width="2.5" stroke-linecap="round"/><path d="M24 24c0-9 4-15 10-18 1 7-2 14-10 18Z" fill="#4f7a3e"/><path d="M24 24c0-9-4-15-10-18-1 7 2 14 10 18Z" fill="#6b8f57"/><path d="M24 32c0-6 3-10 7-12 .6 5-1.6 9.6-7 12Z" fill="#597f46"/><path d="M24 32c0-6-3-10-7-12-.6 5 1.6 9.6-7 12Z" fill="#77995f"/></svg>`,
+  rosemary:`<svg viewBox="0 0 48 48" fill="none" stroke="#3e6b4f" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M24 44V6" stroke-width="2.5"/><path d="M24 10l6-4M24 10l-6-4M24 16l7-4M24 16l-7-4M24 22l7-3M24 22l-7-3M24 28l7-3M24 28l-7-3M24 34l6-2M24 34l-6-2M24 40l5-2M24 40l-5-2"/></svg>`,
+  lavender:`<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M14 44c1-10 2-16 4-22M24 44V16M34 44c-1-10-2-16-4-22" stroke="#5f7d4a" stroke-width="2" stroke-linecap="round"/><ellipse cx="18" cy="15" rx="3.4" ry="8" fill="#8a7ab5" transform="rotate(-8 18 15)"/><ellipse cx="24" cy="9" rx="3.6" ry="8.5" fill="#7c6da6"/><ellipse cx="30" cy="15" rx="3.4" ry="8" fill="#8a7ab5" transform="rotate(8 30 15)"/></svg>`,
+  pittosporum:`<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M24 44v-9" stroke="#5b4a32" stroke-width="2.5" stroke-linecap="round"/><circle cx="24" cy="21" r="14" fill="#6b8f57"/><circle cx="17" cy="18" r="4" fill="#8fae76"/><circle cx="27" cy="13" r="3.6" fill="#8fae76"/><circle cx="30" cy="24" r="4.2" fill="#597f46"/><circle cx="20" cy="27" r="3.4" fill="#7ea065"/><circle cx="24" cy="20" r="2" fill="#f3eee1"/></svg>`,
+  oleander:`<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M18 44c2-8 3-14 6-20M30 44c-2-8-3-14-6-20" stroke="#4f7a3e" stroke-width="2" stroke-linecap="round"/><path d="M12 30c4 1 7 3 9 6-4 1-8-1-9-6ZM36 30c-4 1-7 3-9 6 4 1 8-1 9-6Z" fill="#5f7d4a"/><g fill="#c4788a"><circle cx="24" cy="10" r="4.6"/><circle cx="15" cy="16" r="4.2"/><circle cx="33" cy="16" r="4.2"/></g><g fill="#f3eee1"><circle cx="24" cy="10" r="1.6"/><circle cx="15" cy="16" r="1.5"/><circle cx="33" cy="16" r="1.5"/></g></svg>`,
+  jasmine:`<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M10 44C14 30 20 20 34 10" stroke="#4f7a3e" stroke-width="2.2" stroke-linecap="round"/><path d="M18 32c3 0 5 1 7 3-3 1-6 0-7-3ZM24 22c3 0 5 1 7 3-3 1-6 0-7-3Z" fill="#6b8f57"/><g fill="#faf6ee" stroke="#d9d2c0" stroke-width="1"><circle cx="36" cy="9" r="3.4"/><circle cx="30" cy="15" r="3"/><circle cx="40" cy="15" r="2.7"/></g><g fill="#b59445"><circle cx="36" cy="9" r="1.1"/><circle cx="30" cy="15" r="1"/><circle cx="40" cy="15" r="1"/></g></svg>`,
+  agave:`<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M24 44c-2-12-2-22 0-32 2 10 2 20 0 32Z" fill="#6f8f6a"/><path d="M22 44c-6-6-9-14-8-24 5 6 8 14 8 24Z" fill="#88a884"/><path d="M26 44c6-6 9-14 8-24-5 6-8 14-8 24Z" fill="#88a884"/><path d="M19 44c-8-3-13-9-14-17 7 3 12 9 14 17Z" fill="#9db898"/><path d="M29 44c8-3 13-9 14-17-7 3-12 9-14 17Z" fill="#9db898"/></svg>`,
+};
+
+const ITEMS = [
+  /* --- Φυτά (8) — section: plants --- */
+  { id:'p-elia', tab:'plants', cat:'Δέντρα', name:'Ελιά αιωνόβια', bot:'Olea europaea', sub:'κορμός 80–100 εκ.', unit:'τεμ.', price:1200, dq:1, step:1, icon:'olive', pl:'αιωνόβιες ελιές', sing:'αιωνόβια ελιά' },
+  { id:'p-dafni', tab:'plants', cat:'Θάμνοι', name:'Δάφνη', bot:'Laurus nobilis', sub:'ύψος 80–100 εκ.', unit:'τεμ.', price:35, dq:10, step:1, icon:'laurel', pl:'δάφνες', sing:'δάφνη' },
+  { id:'p-dendrolivano', tab:'plants', cat:'Αρωματικά', name:'Δενδρολίβανο', bot:'Salvia rosmarinus', sub:'γλάστρα 2 λτ.', unit:'τεμ.', price:8, dq:10, step:1, icon:'rosemary', pl:'δενδρολίβανα', sing:'δενδρολίβανο' },
+  { id:'p-levanta', tab:'plants', cat:'Αρωματικά', name:'Λεβάντα', bot:'Lavandula angustifolia', sub:'γλάστρα 2,5 λτ.', unit:'τεμ.', price:9, dq:10, step:1, icon:'lavender', pl:'λεβάντες', sing:'λεβάντα' },
+  { id:'p-aggeliki', tab:'plants', cat:'Θάμνοι', name:'Αγγελική', bot:'Pittosporum tobira', sub:'ύψος 60–80 εκ.', unit:'τεμ.', price:14, dq:10, step:1, icon:'pittosporum', pl:'αγγελικές', sing:'αγγελική' },
+  { id:'p-pikrodafni', tab:'plants', cat:'Θάμνοι', name:'Πικροδάφνη', bot:'Nerium oleander', sub:'ύψος 80–100 εκ.', unit:'τεμ.', price:12, dq:10, step:1, icon:'oleander', pl:'πικροδάφνες', sing:'πικροδάφνη' },
+  { id:'p-giasemi', tab:'plants', cat:'Αναρριχώμενα', name:'Γιασεμί', bot:'Jasminum officinale', sub:'με στήριγμα, 1,5 μ.', unit:'τεμ.', price:15, dq:5, step:1, icon:'jasmine', pl:'γιασεμιά', sing:'γιασεμί' },
+  { id:'p-agavi', tab:'plants', cat:'Παχύφυτα', name:'Αγαύη', bot:'Agave americana', sub:'διάμετρος 40–60 εκ.', unit:'τεμ.', price:45, dq:3, step:1, icon:'agave', pl:'αγαύες', sing:'αγαύη' },
+
+  /* --- Υλικά (8) — section: materials --- */
+  { id:'m-choma', tab:'materials', cat:'Έδαφος & θρέψη', name:'Κηπευτικό χώμα', sub:'κοσκινισμένο, παράδοση επί τόπου', unit:'m³', price:38, dq:10, step:1, phrase:'κηπευτικό χώμα',
+    tex:'radial-gradient(circle at 25% 30%, rgba(255,255,255,.14) 0 2px, transparent 3px), radial-gradient(circle at 65% 60%, rgba(0,0,0,.22) 0 2px, transparent 3px), radial-gradient(circle at 45% 80%, rgba(255,255,255,.1) 0 1.5px, transparent 2.5px), linear-gradient(160deg,#6b4b2e,#57391f)' },
+  { id:'m-kompost', tab:'materials', cat:'Έδαφος & θρέψη', name:'Κομπόστ βελτιωτικό', sub:'οργανικό εδαφοβελτιωτικό', unit:'m³', price:55, dq:5, step:1, phrase:'κομπόστ εδαφοβελτιωτικό',
+    tex:'radial-gradient(circle at 30% 40%, rgba(163,177,138,.3) 0 2px, transparent 3px), radial-gradient(circle at 70% 30%, rgba(0,0,0,.3) 0 2.5px, transparent 3.5px), radial-gradient(circle at 55% 75%, rgba(255,255,255,.08) 0 2px, transparent 3px), linear-gradient(150deg,#4a3520,#332211)' },
+  { id:'m-xaliki', tab:'materials', cat:'Αδρανή & διακόσμηση', name:'Χαλίκι Λευκάδας', sub:'λευκό, 8–16 mm', unit:'m²', price:12, dq:20, step:5, phrase:'επίστρωση με χαλίκι Λευκάδας',
+    tex:'radial-gradient(circle at 22% 28%, #fdfbf5 0 4px, transparent 5px), radial-gradient(circle at 58% 52%, #efe9dc 0 5px, transparent 6px), radial-gradient(circle at 82% 26%, #f7f3e8 0 4px, transparent 5px), radial-gradient(circle at 38% 78%, #e9e2d2 0 4.5px, transparent 5.5px), radial-gradient(circle at 74% 78%, #fbf8f0 0 4px, transparent 5px), #ddd5c3' },
+  { id:'m-votsalo', tab:'materials', cat:'Αδρανή & διακόσμηση', name:'Βότσαλο ποταμού', sub:'στρογγυλεμένο, 16–32 mm', unit:'m²', price:16, dq:15, step:5, phrase:'επίστρωση με βότσαλο ποταμού',
+    tex:'radial-gradient(circle at 25% 30%, #b9a17e 0 6px, transparent 7px), radial-gradient(circle at 60% 55%, #8d9486 0 7px, transparent 8px), radial-gradient(circle at 80% 25%, #9c8262 0 5px, transparent 6px), radial-gradient(circle at 40% 80%, #7e8a6f 0 6px, transparent 7px), #b3a888' },
+  { id:'m-geoyfasma', tab:'materials', cat:'Υποδομή', name:'Γεωύφασμα', sub:'διαπερατό, κατά ζιζανίων', unit:'m²', price:2.8, dq:50, step:5, phrase:'γεωύφασμα εδάφους',
+    tex:'repeating-linear-gradient(0deg,#565b52 0 3px,#494e46 3px 6px), repeating-linear-gradient(90deg, rgba(255,255,255,.06) 0 2px, transparent 2px 6px)' },
+  { id:'m-ardefsi', tab:'materials', cat:'Υποδομή', name:'Άρδευση στάγδην', sub:'πλήρες δίκτυο ανά m²', unit:'m²', price:6.5, dq:50, step:5, phrase:'δίκτυο άρδευσης στάγδην',
+    tex:'radial-gradient(circle at 30% 34%, #7fb6c9 0 2.5px, transparent 3.5px), radial-gradient(circle at 66% 34%, #7fb6c9 0 2.5px, transparent 3.5px), radial-gradient(circle at 48% 72%, #7fb6c9 0 2.5px, transparent 3.5px), repeating-linear-gradient(0deg, transparent 0 16px, #33302b 16px 20px, transparent 20px 40px), linear-gradient(160deg,#6d5335,#54401f)' },
+  { id:'m-fotistiko', tab:'materials', cat:'Φωτισμός', name:'Φωτιστικό κήπου LED', sub:'χωνευτό / καρφωτό, IP65', unit:'τεμ.', price:65, dq:6, step:1, phrase:'φωτιστικό κήπου LED', phrasePl:'φωτιστικά κήπου LED',
+    tex:'radial-gradient(circle at 50% 32%, #f2d98c 0 7px, rgba(242,217,140,.4) 8px 15px, transparent 16px), linear-gradient(180deg,#1d2a24,#12302a)' },
+  { id:'m-gazon', tab:'materials', cat:'Χλοοτάπητας', name:'Γκαζόν έτοιμος τάπητας', sub:'προκαλλιεργημένος, σε ρολά', unit:'m²', price:9.5, dq:50, step:5, phrase:'έτοιμος χλοοτάπητας', phraseAcc:'έτοιμο χλοοτάπητα',
+    tex:'repeating-linear-gradient(80deg,#5f7d40 0 3px,#54743a 3px 6px), repeating-linear-gradient(100deg, rgba(255,255,255,.06) 0 2px, transparent 2px 5px)' },
+
+  /* --- Σκληρά δομικά (8) — section: hardscape --- */
+  { id:'h-karystou', tab:'hardscape', cat:'Δάπεδα', name:'Πλάκες Καρύστου', sub:'ακανόνιστες, με τοποθέτηση', unit:'m²', price:68, dq:20, step:5, phrase:'πλακόστρωση με πλάκες Καρύστου',
+    tex:'repeating-linear-gradient(100deg,#7e8579 0 16px,#6f766b 16px 30px,#8a9184 30px 44px), radial-gradient(circle at 30% 30%, rgba(255,255,255,.12), transparent 60%)' },
+  { id:'h-kyvolithoi', tab:'hardscape', cat:'Δάπεδα', name:'Κυβόλιθοι', sub:'γρανίτης 10×10, με τοποθέτηση', unit:'m²', price:42, dq:20, step:5, phrase:'δάπεδο από κυβόλιθους',
+    tex:'repeating-linear-gradient(0deg,#8b8e8a 0 14px,#767a75 14px 16px), repeating-linear-gradient(90deg,#898c87 0 14px,#71756f 14px 16px)' },
+  { id:'h-deck', tab:'hardscape', cat:'Δάπεδα', name:'Deck WPC', sub:'σύνθετη σανίδα, με υπόβαση', unit:'m²', price:85, dq:15, step:5, phrase:'δάπεδο deck WPC',
+    tex:'repeating-linear-gradient(90deg,#b07b46 0 20px,#a06f3e 20px 22px), repeating-linear-gradient(90deg, rgba(0,0,0,.07) 0 2px, transparent 2px 5px)' },
+  { id:'h-perifraxi', tab:'hardscape', cat:'Κατασκευές', name:'Ξύλινη περίφραξη', sub:'εμποτισμένη ξυλεία, ύψος 1,2 μ.', unit:'m', price:55, dq:10, step:1, phrase:'ξύλινη περίφραξη',
+    tex:'repeating-linear-gradient(90deg,#a97c4a 0 11px,#96693a 11px 13px), repeating-linear-gradient(0deg, rgba(0,0,0,.05) 0 2px, transparent 2px 9px)' },
+  { id:'h-pergola', tab:'hardscape', cat:'Κατασκευές', name:'Πέργκολα ξύλινη', sub:'3×4 μ., εμποτισμένη ξυλεία', unit:'τεμ.', price:2400, dq:1, step:1, phrase:'ξύλινη πέργκολα', phrasePl:'ξύλινες πέργκολες',
+    tex:'repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 6px, transparent 6px 18px), repeating-linear-gradient(90deg,#b08050 0 16px,#9a6c3e 16px 20px)' },
+  { id:'h-vrysi', tab:'hardscape', cat:'Κατασκευές', name:'Βρύση – κρήνη κήπου', sub:'πέτρινη, με παροχή', unit:'τεμ.', price:480, dq:1, step:1, phrase:'πέτρινη κρήνη κήπου', phrasePl:'πέτρινες κρήνες κήπου',
+    tex:'radial-gradient(circle at 50% 55%, #7fb6c9 0 11px, #5f99ad 11px 15px, #b9b2a4 16px 24px, #a49c8c 24px 100%)' },
+  { id:'h-parteri', tab:'hardscape', cat:'Κατασκευές', name:'Παρτέρι υπερυψωμένο', sub:'ξύλινο, ύψος 45 εκ., ανά τρέχον μέτρο', unit:'m', price:95, dq:6, step:1, phrase:'υπερυψωμένα παρτέρια φύτευσης',
+    tex:'linear-gradient(0deg, #8a5f36 0 22%, transparent 22%), linear-gradient(180deg, #8a5f36 0 22%, transparent 22%), radial-gradient(circle at 40% 50%, rgba(163,177,138,.35) 0 4px, transparent 5px), linear-gradient(160deg,#5d4022,#4a3118)' },
+  { id:'h-xirolithia', tab:'hardscape', cat:'Τοιχία', name:'Τοιχίο ξηρολιθιάς', sub:'φυσική πέτρα, ύψος έως 60 εκ.', unit:'m', price:160, dq:5, step:1, phrase:'τοιχίο ξηρολιθιάς',
+    tex:'repeating-linear-gradient(20deg,#c9b48a 0 14px,#b39e74 14px 20px,#d2bd92 20px 30px), radial-gradient(circle at 70% 40%, rgba(0,0,0,.12), transparent 50%)' },
+];
+
+const TABS = { plants:'Φυτά', materials:'Υλικά', hardscape:'Σκληρά δομικά' };
+const SECTIONS = ['plants','materials','hardscape'];
+const SECTION_NAMES = { plants:'Φυτεύσεις', materials:'Υλικά', hardscape:'Σκληρές κατασκευές' };
+const itemById = id => ITEMS.find(i=>i.id===id);
+const sectionOf = it => it.tab; /* tab key doubles as section key */
+
+/* ---------------- Projects (3, all in Προσφορά phase) ---------------- */
+const PROJECTS = {
+  ekali: {
+    id:'ekali', type:'villa', label:'Βίλα Εκάλη — κα Δημητρίου',
+    client:'κα Ελένη Δημητρίου', title:'Βίλα Εκάλη',
+    desc:'Ιδιωτικός κήπος 450 m²', location:'Εκάλη, Αττική', offerNo:'ΠΡ-2026-041',
+    salut:{ formal:'Αξιότιμη κυρία Δημητρίου,', friendly:'Αγαπητή κυρία Δημητρίου,' },
+    scope:{ formal:'τη συνολική διαμόρφωση του κήπου της κατοικίας σας στην Εκάλη (450 m²)', friendly:'τον κήπο της βίλας σας στην Εκάλη' },
+  },
+  marousi: {
+    id:'marousi', type:'corporate', label:'Εταιρικό campus Μαρούσι — Alpha Real Estate',
+    client:'Alpha Real Estate Α.Ε.', title:'Εταιρικό campus Μαρούσι',
+    desc:'Περιβάλλων χώρος γραφείων', location:'Μαρούσι, Αττική', offerNo:'ΠΡ-2026-042',
+    salut:{ formal:'Αξιότιμοι συνεργάτες της Alpha Real Estate,', friendly:'Αγαπητή ομάδα της Alpha Real Estate,' },
+    scope:{ formal:'τη διαμόρφωση του περιβάλλοντος χώρου του εταιρικού campus στο Μαρούσι', friendly:'τον περιβάλλοντα χώρο των γραφείων σας στο Μαρούσι' },
+  },
+  kolonaki: {
+    id:'kolonaki', type:'roof', label:'Roof garden Κολωνάκι — κ. Βασιλείου',
+    client:'κ. Νίκος Βασιλείου', title:'Roof garden Κολωνάκι',
+    desc:'Ταράτσα 85 m²', location:'Κολωνάκι, Αθήνα', offerNo:'ΠΡ-2026-043',
+    salut:{ formal:'Αξιότιμε κύριε Βασιλείου,', friendly:'Αγαπητέ κύριε Βασιλείου,' },
+    scope:{ formal:'τη διαμόρφωση του roof garden στην ταράτσα σας στο Κολωνάκι (85 m²)', friendly:'την ταράτσα σας στο Κολωνάκι' },
+  },
+};
+const PROJECT_ORDER = ['ekali','marousi','kolonaki'];
+
+/* Seed drafts: 4–6 lines each + per-section flat labor fees */
+const SEEDS = {
+  ekali: {
+    lines:[ ['p-elia',2], ['p-levanta',40], ['p-dendrolivano',30], ['m-ardefsi',200], ['m-gazon',120], ['h-karystou',60] ],
+    labor:{ plants:{on:true,amount:850}, materials:{on:true,amount:450}, hardscape:{on:true,amount:1100} },
+    discount:5, vatOn:true, tone:'formal',
+  },
+  marousi: {
+    lines:[ ['p-aggeliki',80], ['p-pikrodafni',25], ['m-geoyfasma',150], ['m-fotistiko',12], ['h-kyvolithoi',90] ],
+    labor:{ plants:{on:true,amount:600}, materials:{on:true,amount:300}, hardscape:{on:true,amount:950} },
+    discount:10, vatOn:true, tone:'formal',
+  },
+  kolonaki: {
+    lines:[ ['p-agavi',6], ['p-giasemi',8], ['p-levanta',20], ['h-deck',30], ['h-parteri',12] ],
+    labor:{ plants:{on:true,amount:350}, materials:{on:false,amount:300}, hardscape:{on:true,amount:780} },
+    discount:0, vatOn:true, tone:'formal',
+  },
+};
+
+/* AI item suggestions per project (filtered to items not in the draft) */
+const SUGGESTIONS = {
+  ekali: [
+    { id:'h-pergola', why:'Σκίαση για τις καλοκαιρινές ώρες στη βεράντα' },
+    { id:'p-giasemi', why:'Άρωμα και πρασινάδα στην είσοδο' },
+    { id:'m-fotistiko', why:'Αναδεικνύει τις αιωνόβιες ελιές τη νύχτα' },
+    { id:'m-votsalo', why:'Καθαρό φινίρισμα παρτεριών, λιγότερα ζιζάνια' },
+    { id:'p-dafni', why:'Πυκνός φράχτης ιδιωτικότητας στο όριο' },
+    { id:'h-vrysi', why:'Σημείο νερού — δροσιά και ατμόσφαιρα' },
+  ],
+  marousi: [
+    { id:'m-gazon', why:'Άμεσο πράσινο αποτέλεσμα για εταιρική εικόνα' },
+    { id:'m-ardefsi', why:'Σταθερό πότισμα, λιγότερη συντήρηση' },
+    { id:'p-elia', why:'Εντυπωσιακό σημείο εστίασης στην είσοδο' },
+    { id:'h-parteri', why:'Οργανωμένες φυτεύσεις κατά μήκος των διαδρόμων' },
+    { id:'p-dafni', why:'Ανθεκτικός φράχτης στο όριο του οικοπέδου' },
+    { id:'m-fotistiko', why:'Ασφάλεια και ανάδειξη τις βραδινές ώρες' },
+  ],
+  kolonaki: [
+    { id:'p-agavi', why:'Ανθεκτικό στον αέρα — ιδανικό για ταράτσες' },
+    { id:'m-geoyfasma', why:'Ελαφρύ υπόστρωμα — προστατεύει τη μόνωση' },
+    { id:'p-dendrolivano', why:'Αντέχει ήλιο και αέρα με ελάχιστο νερό' },
+    { id:'m-fotistiko', why:'Ζεστή ατμόσφαιρα τις βραδινές ώρες' },
+    { id:'m-ardefsi', why:'Αυτόματο πότισμα — ξέγνοιαστο καλοκαίρι' },
+    { id:'h-parteri', why:'Φύτευση χωρίς σκάψιμο, σε ύψος εργασίας' },
+  ],
+};
+
+/* ---------------- Helpers ---------------- */
+const $  = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const round2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
+const fmt = n => round2(n).toLocaleString('el-GR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const euro = n => fmt(n) + ' €';
+/* Parse Greek or plain decimal input: "1.234,56" | "1234,56" | "68.5".
+   Strict: returns null for empty/invalid text so callers can keep the
+   last valid value instead of silently zeroing a line. */
+function parseNumStrict(str){
+  let s = String(str).trim();
+  if(!s) return null;
+  if(s.includes(',')){ s = s.replace(/\./g,'').replace(',','.'); }
+  if(!/^-?\d+(\.\d*)?$/.test(s)) return null;
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+/* Accent-fold + lowercase so Greek search matches unaccented/uppercase
+   input («λεβαντα», «ΛΕΒΑΝΤΑ», «ΧΑΛΙΚΙ» must all match). */
+const fold = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+function listGr(arr){
+  if(arr.length===0) return '';
+  if(arr.length===1) return arr[0];
+  return arr.slice(0,-1).join(', ') + ' και ' + arr[arr.length-1];
+}
+
+/* ---------------- State + persistence ---------------- */
+const STORAGE_KEY = 'laflow-lf01-offer-drafter-redesign-v1';
+
+function seedDraft(pid){
+  const s = SEEDS[pid];
+  const d = {
+    lines: s.lines.map(([id,qty])=>({ id, qty, price: itemById(id).price })),
+    labor: JSON.parse(JSON.stringify(s.labor)),
+    discount: s.discount, vatOn: s.vatOn, tone: s.tone,
+    ai: null,
+  };
+  d.ai = generateAiText(d, PROJECTS[pid]);
+  return d;
+}
+
+let state = { active:'ekali', drafts:{} };
+const ui = { tab:'plants', q:'', cat:null, suggest:null, mview:'composer' };
+
+function loadState(){
+  PROJECT_ORDER.forEach(pid => state.drafts[pid] = seedDraft(pid));
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return;
+    const data = JSON.parse(raw);
+    if(!data || data.v!==1) return;
+    if(PROJECT_ORDER.includes(data.active)) state.active = data.active;
+    PROJECT_ORDER.forEach(pid=>{
+      const d = data.drafts && data.drafts[pid];
+      if(!d || !Array.isArray(d.lines)) return;
+      const clean = {
+        lines: d.lines.filter(l=>l && itemById(l.id)).map(l=>({
+          id: l.id,
+          qty: Math.max(1, Math.min(99999, Math.round(Number(l.qty)||1))),
+          price: Math.max(0, Math.min(999999, round2(Number(l.price)||0))),
+        })),
+        labor:{}, discount:0, vatOn:true, tone:'formal', ai:null,
+      };
+      SECTIONS.forEach(sec=>{
+        const lb = (d.labor && d.labor[sec]) || {};
+        clean.labor[sec] = { on: !!lb.on, amount: Math.max(0, Math.min(99999, round2(Number(lb.amount)||0))) };
+      });
+      clean.discount = Math.max(0, Math.min(20, round2(Number(d.discount)||0)));
+      clean.vatOn = d.vatOn !== false;
+      clean.tone = (d.tone==='friendly') ? 'friendly' : 'formal';
+      clean.ai = (d.ai && Array.isArray(d.ai.cover)) ? d.ai : generateAiText(clean, PROJECTS[pid]);
+      state.drafts[pid] = clean;
+    });
+  }catch(e){ /* corrupted storage → keep seeds */ }
+}
+function save(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({ v:1, active:state.active, drafts:state.drafts })); }
+  catch(e){ /* storage unavailable → in-memory only */ }
+}
+const curDraft = () => state.drafts[state.active];
+const curProject = () => PROJECTS[state.active];
+
+/* ---------------- Totals math (2-decimal rounding, discount before VAT) ---------------- */
+function computeTotals(d){
+  let sub = 0;
+  SECTIONS.forEach(sec=>{
+    const secLines = d.lines.filter(l=>sectionOf(itemById(l.id))===sec);
+    secLines.forEach(l=>{ sub += round2(l.qty * l.price); });
+    if(secLines.length && d.labor[sec].on) sub += round2(d.labor[sec].amount);
+  });
+  sub = round2(sub);
+  const discAmt = round2(sub * d.discount / 100);
+  const net = round2(sub - discAmt);
+  const vat = d.vatOn ? round2(net * 0.24) : 0;
+  const grand = round2(net + vat);
+  return { sub, discAmt, net, vat, grand };
+}
+function sectionTotal(d, sec){
+  const secLines = d.lines.filter(l=>sectionOf(itemById(l.id))===sec);
+  let t = secLines.reduce((s,l)=>s+round2(l.qty*l.price),0);
+  if(secLines.length && d.labor[sec].on) t += round2(d.labor[sec].amount);
+  return round2(t);
+}
+
+/* ---------------- Simulated-AI text engine ----------------
+   Deterministic canned Greek keyed off (project type × item mix × tone):
+   regenerating after a mix change ALWAYS changes the wording because
+   item names, quantities and totals are baked into the sentences. */
+/* acc=true → accusative form (object of a transitive verb: «περιλαμβάνει…»,
+   «θα βρείτε…»); default nominative for subject slots («Περιλαμβάνονται…»).
+   Only phrases that differ carry a phraseAcc (e.g. «έτοιμο χλοοτάπητα»). */
+function mixPhrase(l, acc){
+  const it = itemById(l.id);
+  if(it.tab==='plants'){
+    return l.qty===1 ? ('1 ' + it.sing) : (l.qty + ' ' + it.pl);
+  }
+  if(it.unit==='τεμ.'){
+    const ph = (l.qty>1 && it.phrasePl) ? it.phrasePl : ((acc && it.phraseAcc) ? it.phraseAcc : it.phrase);
+    return l.qty + ' ' + ph;
+  }
+  const base = (acc && it.phraseAcc) ? it.phraseAcc : it.phrase;
+  return base + ' (' + l.qty + ' ' + it.unit + ')';
+}
+const TYPE_SENTENCES = {
+  villa:{ formal:'Ο σχεδιασμός βασίζεται σε μεσογειακά, ανθεκτικά είδη χαμηλών απαιτήσεων, ώστε ο κήπος να παραμένει εντυπωσιακός όλο τον χρόνο με ελάχιστη συντήρηση.',
+          friendly:'Διαλέξαμε μεσογειακά φυτά που αντέχουν τα καλοκαίρια της Αττικής και ομορφαίνουν χρόνο με τον χρόνο.' },
+  corporate:{ formal:'Η μελέτη στοχεύει σε υψηλή αισθητική εταιρικής εικόνας με το χαμηλότερο δυνατό κόστος συντήρησης.',
+          friendly:'Στόχος μας ένας χώρος που εντυπωσιάζει τους επισκέπτες σας — χωρίς να απαιτεί καθημερινή φροντίδα.' },
+  roof:{ formal:'Όλες οι επιλογές είναι κατάλληλες για συνθήκες ταράτσας: μειωμένο βάρος, αντοχή στον άνεμο και στην άμεση ηλιοφάνεια.',
+          friendly:'Όλα επιλέχθηκαν ειδικά για ταράτσα: ελαφριά, ανθεκτικά στον αέρα και στον δυνατό ήλιο.' },
+};
+function generateAiText(d, proj){
+  const tone = d.tone;
+  const lines = d.lines.map(l=>({ ...l, it:itemById(l.id), val: l.qty*l.price }));
+  const cover = [];
+  cover.push(proj.salut[tone]);
+  if(tone==='formal'){
+    cover.push('Σας ευχαριστούμε θερμά για την εμπιστοσύνη σας στο γραφείο μας. Σε συνέχεια της αυτοψίας, σας υποβάλλουμε αναλυτική προσφορά για ' + proj.scope.formal + '.');
+  }else{
+    cover.push('Σας ευχαριστούμε για την ωραία συνεργασία! Μετά την επίσκεψή μας στον χώρο, ετοιμάσαμε με μεράκι την πρότασή μας για ' + proj.scope.friendly + '.');
+  }
+  if(lines.length){
+    const top = [...lines].sort((a,b)=>b.val-a.val).slice(0,3);
+    const rest = lines.length - top.length;
+    /* object of «περιλαμβάνει» / «θα βρείτε» → accusative */
+    const listTxt = listGr(top.map(l=>mixPhrase(l, true)));
+    const extra = rest>0 ? (', καθώς και ' + rest + ' ακόμη ' + (rest===1?'είδος':'είδη')) : '';
+    const mixS = (tone==='formal')
+      ? ('Η προσφορά περιλαμβάνει ' + listTxt + extra + '. ')
+      : ('Μέσα θα βρείτε ' + listTxt + extra + ' — όλα διαλεγμένα ένα-ένα για τον χώρο σας. ');
+    cover.push(mixS + TYPE_SENTENCES[proj.type][tone]);
+  }else{
+    cover.push(tone==='formal'
+      ? 'Η προσφορά θα συμπληρωθεί με τα είδη που θα επιλέξετε από τον κατάλογό μας.'
+      : 'Μόλις διαλέξουμε μαζί τα είδη, η πρόταση θα πάρει την τελική της μορφή.');
+  }
+  cover.push(tone==='formal'
+    ? 'Παραμένουμε στη διάθεσή σας για κάθε διευκρίνιση ή προσαρμογή της προσφοράς.'
+    : 'Ό,τι θέλετε να προσαρμόσουμε, το συζητάμε ευχαρίστως — είμαστε πάντα κοντά σας.');
+
+  const scopes = {};
+  SECTIONS.forEach(sec=>{
+    const secLines = lines.filter(l=>sectionOf(l.it)===sec);
+    if(!secLines.length) return;
+    const shown = secLines.slice(0,4);
+    /* materials scope uses nominative («Περιλαμβάνονται…» / colon list);
+       plants («φύτευση με…») and hardscape («περιλαμβάνουν…») take accusative */
+    const acc = sec !== 'materials';
+    let listTxt = listGr(shown.map(l=>mixPhrase(l, acc)));
+    if(secLines.length>4) listTxt += ' κ.ά.';
+    if(sec==='plants'){
+      scopes[sec] = (tone==='formal')
+        ? ('Προτείνεται φύτευση με ' + listTxt + '. Τα είδη επιλέχθηκαν για το μεσογειακό κλίμα και τη χαμηλή κατανάλωση νερού' + (proj.type==='roof' ? ', με αντοχή στις συνθήκες της ταράτσας' : '') + '.')
+        : ('Στις φυτεύσεις πάμε με ' + listTxt + ' — είδη που ριζώνουν εύκολα και δεν ζητούν πολλά' + (proj.type==='roof' ? ', ιδανικά για ταράτσα' : '') + '.');
+    }else if(sec==='materials'){
+      scopes[sec] = (tone==='formal')
+        ? ('Περιλαμβάνονται ' + listTxt + ', ώστε η εγκατάσταση να παραδοθεί πλήρης και άμεσα λειτουργική.')
+        : ('Φροντίσαμε και την υποδομή: ' + listTxt + ' — όλα έτοιμα από την πρώτη μέρα.');
+    }else{
+      scopes[sec] = (tone==='formal')
+        ? ('Οι σκληρές κατασκευές περιλαμβάνουν ' + listTxt + ', με υλικά υψηλής αντοχής για εξωτερική χρήση.')
+        : ('Για τις κατασκευές προτείνουμε ' + listTxt + ' — υλικά που αντέχουν και παλιώνουν όμορφα.');
+    }
+  });
+  return { cover, scopes };
+}
+
+/* ---------------- Typing effect (latency theater) ---------------- */
+let typeToken = 0;
+let typingTimers = [];
+let pendingThink = null;
+let aiBusy = false;
+
+function typeInto(el, text, speed){
+  const myToken = typeToken;
+  return new Promise(res=>{
+    let i = 0;
+    el.classList.add('typing');
+    const iv = setInterval(()=>{
+      if(myToken !== typeToken){ clearInterval(iv); res(false); return; }
+      i++;
+      el.textContent = text.slice(0, i);
+      if(i >= text.length){ clearInterval(iv); el.classList.remove('typing'); res(true); }
+    }, speed);
+    typingTimers.push(iv);
+  });
+}
+function interruptTyping(){
+  typeToken++;
+  typingTimers.forEach(clearInterval);
+  typingTimers = [];
+  if(pendingThink){ clearTimeout(pendingThink); pendingThink = null; }
+  if(aiBusy){ aiBusy = false; setAiBtnBusy(false); setSuggestBtnBusy(false); }
+}
+function setAiBtnBusy(b){
+  const btn = $('#aiBtn');
+  btn.disabled = b;
+  btn.classList.toggle('shimmer', b);
+  $('#aiBtnLabel').textContent = b ? 'Σύνταξη κειμένου…' : 'Σύνταξη κειμένου με AI';
+}
+function setSuggestBtnBusy(b){
+  const btn = $('#suggestBtn');
+  btn.disabled = b;
+  btn.classList.toggle('shimmer', b);
+}
+
+/* ---------------- Mutations ---------------- */
+function addItem(id, qty){
+  const d = curDraft();
+  const it = itemById(id);
+  const existing = d.lines.find(l=>l.id===id);
+  if(existing) existing.qty += (qty || it.step);
+  else d.lines.push({ id, qty: qty || it.dq, price: it.price });
+  update();
+}
+function stepItem(id, dir){
+  const d = curDraft();
+  const it = itemById(id);
+  const line = d.lines.find(l=>l.id===id);
+  if(!line) { if(dir>0) addItem(id); return; }
+  const next = line.qty + dir * it.step;
+  if(next < 1) return; /* «−» never deletes a line — removal only via the remove button */
+  line.qty = next;
+  update();
+}
+function removeLine(id){
+  const d = curDraft();
+  d.lines = d.lines.filter(l=>l.id!==id);
+  toast('«' + itemById(id).name + '» αφαιρέθηκε από την προσφορά');
+  update();
+}
+function setLineQty(id, qty){
+  const line = curDraft().lines.find(l=>l.id===id);
+  if(!line) return;
+  line.qty = Math.max(1, Math.min(99999, Math.round(qty)||1));
+}
+function setLinePrice(id, price){
+  const line = curDraft().lines.find(l=>l.id===id);
+  if(!line) return;
+  line.price = Math.max(0, Math.min(999999, round2(price)));
+}
+
+/* ---------------- Render: catalog ---------------- */
+function catsForTab(tab){ return [...new Set(ITEMS.filter(i=>i.tab===tab).map(i=>i.cat))]; }
+function visibleItems(){
+  const q = fold(ui.q);
+  return ITEMS.filter(i=>{
+    if(i.tab !== ui.tab) return false;
+    if(ui.cat && i.cat !== ui.cat) return false;
+    if(q){
+      const hay = fold(i.name + ' ' + (i.bot||'') + ' ' + i.sub + ' ' + i.cat);
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+function renderTabs(){
+  $$('.tabbar button').forEach(b=>{
+    const on = b.dataset.tab === ui.tab;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+}
+function renderChips(){
+  const cats = catsForTab(ui.tab);
+  $('#chips').innerHTML =
+    `<button type="button" data-cat="" class="${ui.cat?'':'active'}">Όλα</button>` +
+    cats.map(c=>`<button type="button" data-cat="${esc(c)}" class="${ui.cat===c?'active':''}">${esc(c)}</button>`).join('');
+}
+function renderCatalogGrid(){
+  const list = visibleItems();
+  const d = curDraft();
+  $('#catCount').textContent = list.length===1 ? '1 είδος' : (list.length + ' είδη');
+  $('#itemsList').dataset.tab = ui.tab; /* drives the per-category accent rule via CSS */
+  if(!list.length){
+    $('#itemsList').innerHTML = `<div class="cat-empty">Κανένα είδος δεν ταιριάζει στην αναζήτηση.<br>Δοκιμάστε άλλον όρο ή καθαρίστε το φίλτρο.</div>`;
+    return;
+  }
+  $('#itemsList').innerHTML = list.map(it=>{
+    const line = d.lines.find(l=>l.id===it.id);
+    const vis = it.icon
+      ? `<span class="vis">${ICONS[it.icon]}</span>`
+      : `<span class="vis tex" style="background:${it.tex}" aria-hidden="true"></span>`;
+    const sub = it.bot ? `<i>${esc(it.bot)}</i> · ${esc(it.sub)}` : esc(it.sub);
+    const act = line
+      ? `<div class="stepper" role="group" aria-label="Ποσότητα για ${esc(it.name)}">
+           <button type="button" data-step="-1" data-id="${it.id}" aria-label="Μείωση ποσότητας" ${line.qty - it.step < 1 ? 'disabled' : ''}>−</button>
+           <span class="qv">${line.qty}</span>
+           <button type="button" data-step="1" data-id="${it.id}" aria-label="Αύξηση ποσότητας">+</button>
+         </div>`
+      : `<button class="add-btn" type="button" data-add="${it.id}">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+           Προσθήκη
+         </button>`;
+    return `<div class="specimen">
+      ${vis}
+      <div class="info">
+        <h4>${esc(it.name)}</h4>
+        <div class="sub">${sub}</div>
+        <div class="pr">${fmt(it.price)} € / ${esc(it.unit)}</div>
+      </div>
+      <div class="act">${act}</div>
+    </div>`;
+  }).join('');
+}
+function renderBadge(){
+  const d = curDraft();
+  const t = computeTotals(d);
+  $('#badgeCount').textContent = d.lines.length===1 ? '1 είδος' : (d.lines.length + ' είδη');
+  $('#badgeTotal').textContent = euro(t.grand);
+  const mb = $('#mnavBadge');
+  if(d.lines.length){ mb.textContent = d.lines.length; mb.hidden = false; }
+  else{ mb.hidden = true; }
+}
+
+/* ---------------- Render: composer ---------------- */
+function renderProjCard(){
+  const p = curProject();
+  const today = new Date().toLocaleDateString('el-GR',{day:'numeric',month:'long',year:'numeric'});
+  $('#projCard').innerHTML = `
+    <div class="row1">
+      <span class="client">${esc(p.client)}</span>
+      <span class="phase-chip">Προσφορά</span>
+    </div>
+    <div class="meta">${esc(p.title)} · ${esc(p.desc)} · ${esc(p.location)}</div>
+    <div class="refrow">
+      <span>Αρ. προσφοράς: <b>${esc(p.offerNo)}</b></span>
+      <span>Ημερομηνία: ${esc(today)}</span>
+    </div>`;
+}
+function renderComposerBody(){
+  const d = curDraft();
+  if(!d.lines.length){
+    $('#compBody').innerHTML = `<div class="comp-empty">Η προσφορά είναι άδεια.<br>Προσθέστε είδη από τον κατάλογο αριστερά.</div>`;
+    $('#compBody').removeAttribute('data-sec-count');
+    return;
+  }
+  let html = '';
+  let secCount = 0;
+  SECTIONS.forEach(sec=>{
+    const secLines = d.lines.filter(l=>sectionOf(itemById(l.id))===sec);
+    if(!secLines.length) return;
+    secCount++;
+    html += `<section class="sec" data-sec="${sec}">
+      <div class="sec-h"><h2>${SECTION_NAMES[sec]}</h2><span class="cnt">${secLines.length} ${secLines.length===1?'είδος':'είδη'}</span><span class="ln"></span></div>`;
+    secLines.forEach(l=>{
+      const it = itemById(l.id);
+      html += `<div class="ledger-line" data-line="${it.id}">
+        <div class="l-top">
+          <div>
+            <div class="l-name">${esc(it.name)}</div>
+            <div class="l-unitinfo">${it.bot ? '<i>'+esc(it.bot)+'</i> · ' : ''}μονάδα: ${esc(it.unit)}</div>
+          </div>
+          <button class="l-remove" type="button" data-remove="${it.id}" aria-label="Αφαίρεση: ${esc(it.name)}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></svg>
+          </button>
+        </div>
+        <div class="l-ctl">
+          <div class="fld">
+            <span class="fl">Ποσότητα</span>
+            <div class="stepper" role="group" aria-label="Ποσότητα για ${esc(it.name)}">
+              <button type="button" data-lstep="-1" data-id="${it.id}" aria-label="Μείωση ποσότητας" ${l.qty - it.step < 1 ? 'disabled' : ''}>−</button>
+              <span class="qv">${l.qty}</span>
+              <button type="button" data-lstep="1" data-id="${it.id}" aria-label="Αύξηση ποσότητας">+</button>
+            </div>
+          </div>
+          <div class="fld">
+            <label class="fl" for="pr-${it.id}">Τιμή / ${esc(it.unit)}</label>
+            <input class="priceinp" id="pr-${it.id}" type="text" inputmode="decimal" value="${fmt(l.price)}" data-price="${it.id}">
+          </div>
+          <div class="l-total">
+            <span class="tv" data-ltotal="${it.id}">${euro(round2(l.qty*l.price))}</span>
+            <span class="tu">${l.qty} × ${fmt(l.price)} €</span>
+          </div>
+        </div>
+      </div>`;
+    });
+    const lb = d.labor[sec];
+    html += `<div class="labor ${lb.on?'':'off'}" data-laborrow="${sec}">
+      <label class="switch">
+        <input type="checkbox" data-labor-on="${sec}" ${lb.on?'checked':''} aria-label="Εργασία &amp; τοποθέτηση — ${SECTION_NAMES[sec]}">
+        <span class="trk"></span>
+      </label>
+      <span class="lb-name">Εργασία &amp; τοποθέτηση<span class="lb-sub">κατ' αποκοπή για την ενότητα</span></span>
+      <div class="fld">
+        <label class="fl" for="lb-${sec}">Ποσό €</label>
+        <input class="priceinp laborinp" id="lb-${sec}" type="text" inputmode="decimal" value="${fmt(lb.amount)}" data-labor-amt="${sec}" ${lb.on?'':'disabled'}>
+      </div>
+    </div>`;
+    html += `</section>`;
+  });
+  $('#compBody').innerHTML = html;
+  $('#compBody').dataset.secCount = String(secCount);
+}
+function renderTotalsValues(){
+  const d = curDraft();
+  const t = computeTotals(d);
+  $('#tSub').textContent = euro(t.sub);
+  $('#tDiscAmt').textContent = '−' + euro(t.discAmt);
+  $('#tVat').textContent = d.vatOn ? euro(t.vat) : '—';
+  $('#tGrand').textContent = euro(t.grand);
+}
+function syncTotalsInputs(){
+  const d = curDraft();
+  $('#discInp').value = String(d.discount).replace('.',',');
+  $('#vatChk').checked = d.vatOn;
+}
+
+/* ---------------- Render: suggestions ---------------- */
+function renderSuggest(){
+  const wrap = $('#suggestWrap');
+  if(!ui.suggest){ wrap.innerHTML=''; return; }
+  const d = curDraft();
+  const avail = ui.suggest.filter(s=>!d.lines.some(l=>l.id===s.id));
+  let rows;
+  if(!avail.length){
+    rows = `<div class="sug-empty">Όλα τα προτεινόμενα είδη είναι ήδη στην προσφορά.</div>`;
+  }else{
+    rows = avail.slice(0,4).map(s=>{
+      const it = itemById(s.id);
+      return `<div class="sug-row">
+        <div class="inf">
+          <div class="nm">${esc(it.name)} <span>· ${fmt(it.price)} € / ${esc(it.unit)}</span></div>
+          <span class="sug-why">${esc(s.why)}</span>
+        </div>
+        <button class="sug-add" type="button" data-sadd="${it.id}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Προσθήκη
+        </button>
+      </div>`;
+    }).join('');
+  }
+  wrap.innerHTML = `<div class="suggest" id="suggestPanel">
+    <div class="s-head">
+      <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/></svg> Προτάσεις για: ${esc(curProject().title)}</h3>
+      <button class="s-close" type="button" id="sugClose" aria-label="Κλείσιμο προτάσεων">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    ${rows}
+  </div>`;
+}
+
+/* Reusable letterhead seal — hand-drawn monogram + laurel, matches the topbar mark */
+const SEAL_SVG = `<svg viewBox="0 0 48 48" fill="none">
+  <circle cx="24" cy="24" r="21" fill="#1a3c34"/>
+  <circle cx="24" cy="24" r="21" stroke="#b59445" stroke-width="1.5"/>
+  <circle cx="24" cy="24" r="16.5" stroke="#b59445" stroke-width="0.6" opacity="0.5"/>
+  <path d="M13 31c3.5 4 8 6.2 13 6.2" stroke="#a3b18a" stroke-width="1.3" stroke-linecap="round"/>
+  <path d="M14.3 28c2 .6 3.2 2.3 3 4.3M17 24.6c2.1.3 3.4 1.9 3.1 3.9M20 21.3c2 0 3.3 1.4 3.4 3.4" stroke="#a3b18a" stroke-width="1" stroke-linecap="round"/>
+  <path d="M35 31c-3.5 4-8 6.2-13 6.2" stroke="#a3b18a" stroke-width="1.3" stroke-linecap="round"/>
+  <path d="M33.7 28c-2 .6-3.2 2.3-3 4.3M31 24.6c-2.1.3-3.4 1.9-3.1 3.9M28 21.3c-2 0-3.3 1.4-3.4 3.4" stroke="#a3b18a" stroke-width="1" stroke-linecap="round"/>
+  <text x="24" y="21.5" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="14" font-weight="600" fill="#faf6ee">LF</text>
+</svg>`;
+
+/* ---------------- Render: A4 sheet ---------------- */
+function renderSheet(opts){
+  opts = opts || {};
+  const d = curDraft();
+  const p = curProject();
+  const t = computeTotals(d);
+  const today = new Date().toLocaleDateString('el-GR',{day:'numeric',month:'long',year:'numeric'});
+
+  /* cover letter paragraphs — left empty when a typing pass is about to fill them */
+  const coverHtml = (d.ai ? d.ai.cover : []).map((para,i)=>
+    `<p data-cover-p="${i}">${opts.typing ? '' : esc(para)}</p>`
+  ).join('');
+
+  let secsHtml = '';
+  SECTIONS.forEach(sec=>{
+    const secLines = d.lines.filter(l=>sectionOf(itemById(l.id))===sec);
+    if(!secLines.length) return;
+    const scope = d.ai && d.ai.scopes[sec];
+    const rows = secLines.map(l=>{
+      const it = itemById(l.id);
+      return `<tr>
+        <td class="nm">${esc(it.name)}${it.bot?`<span class="bot">${esc(it.bot)}</span>`:''}</td>
+        <td class="r">${l.qty} ${esc(it.unit)}</td>
+        <td class="r">${euro(l.price)}</td>
+        <td class="r">${euro(round2(l.qty*l.price))}</td>
+      </tr>`;
+    }).join('');
+    const lb = d.labor[sec];
+    const laborRow = lb.on ? `<tr class="labor-r">
+        <td>Εργασία &amp; τοποθέτηση</td>
+        <td class="r">—</td>
+        <td class="r">κατ' αποκοπή</td>
+        <td class="r">${euro(lb.amount)}</td>
+      </tr>` : '';
+    secsHtml += `<section class="sh-sec">
+      <div class="h"><h3>${SECTION_NAMES[sec]}</h3><span class="ln"></span></div>
+      ${scope ? `<p class="sh-scope" data-scope="${sec}">${opts.typing ? '' : esc(scope)}</p>` : ''}
+      <table class="sh-table">
+        <thead><tr><th>Είδος</th><th class="r">Ποσότητα</th><th class="r">Τιμή μονάδας</th><th class="r">Σύνολο</th></tr></thead>
+        <tbody>
+          ${rows}
+          ${laborRow}
+          <tr class="sec-sum"><td colspan="3">Σύνολο ενότητας</td><td class="r">${euro(sectionTotal(d,sec))}</td></tr>
+        </tbody>
+      </table>
+    </section>`;
+  });
+  if(!d.lines.length){
+    secsHtml = `<div class="sh-empty">Η προσφορά δεν περιέχει ακόμη είδη — προσθέστε από τον κατάλογο για να συμπληρωθεί το έγγραφο.</div>`;
+  }
+
+  const discRow = t.discAmt > 0
+    ? `<div class="r"><span>Έκπτωση ${String(d.discount).replace('.',',')}%</span><span class="v neg">−${euro(t.discAmt)}</span></div>
+       <div class="r"><span>Σύνολο μετά την έκπτωση</span><span class="v">${euro(t.net)}</span></div>`
+    : '';
+  const vatRow = d.vatOn
+    ? `<div class="r"><span>ΦΠΑ 24%</span><span class="v">${euro(t.vat)}</span></div>`
+    : '';
+  const vatNote = d.vatOn ? '' : `<div class="sh-vat-note">Οι τιμές δεν περιλαμβάνουν ΦΠΑ 24%.</div>`;
+
+  $('#sheet').innerHTML = `
+    <header class="sh-head">
+      <div class="sh-brand">
+        <div class="wordmark">
+          <span class="wm-mark">${SEAL_SVG}</span>
+          <span class="wm-t">La<b>Flow</b></span>
+        </div>
+        <div class="wm-sub">Outdoor Design · Αρχιτεκτονικη Τοπιου</div>
+      </div>
+      <div class="sh-meta">
+        <div class="doc">Προσφορά</div>
+        Αρ.: <span class="ref">${esc(p.offerNo)}</span><br>
+        Ημερομηνία: <b>${esc(today)}</b><br>
+        Ισχύς προσφοράς: <b>30 ημέρες</b>
+      </div>
+    </header>
+
+    <div class="sh-title">
+      <div class="kick">${esc(p.desc)}</div>
+      <h2>${esc(p.title)}</h2>
+      <div class="cl">Προς: <b>${esc(p.client)}</b> · ${esc(p.location)}</div>
+    </div>
+
+    <div class="sh-letter" id="shLetter">${coverHtml}</div>
+
+    ${secsHtml}
+
+    <div class="sh-totals">
+      <div class="box">
+        <div class="r"><span>Υποσύνολο</span><span class="v">${euro(t.sub)}</span></div>
+        ${discRow}
+        ${vatRow}
+        <div class="gr"><span class="k">Γενικό Σύνολο</span><span class="v">${euro(t.grand)}</span></div>
+        ${vatNote}
+      </div>
+    </div>
+
+    <div class="sh-terms">
+      <p><b>Όροι:</b> Ισχύς προσφοράς: 30 ημέρες από την ημερομηνία έκδοσης. Προτεινόμενος τρόπος πληρωμής: προκαταβολή 30% με την ανάθεση, εξόφληση τμηματικά ανά στάδιο εργασιών. Παρέχεται εγγύηση καλής λειτουργίας για φυτά και δίκτυα σύμφωνα με το πρόγραμμα συντήρησης.</p>
+    </div>
+
+    <div class="sh-sign">
+      <div class="s"><div class="sln"></div><div class="slb">Για το γραφείο μελετών</div></div>
+      <div class="s"><div class="sln"></div><div class="slb">Ο πελάτης — υπογραφή &amp; ημερομηνία</div></div>
+    </div>
+
+    <footer class="sh-foot">
+      <span><b>Outdoor Design</b> Landscape Architecture · Γέρακας, Αθήνα</span>
+      <span>info@outdoordesign.gr · 210 7712713</span>
+    </footer>`;
+}
+
+/* ---------------- Render: tone toggle ---------------- */
+function renderTone(){
+  const tone = curDraft().tone;
+  $$('.tone button').forEach(b=>{
+    const on = b.dataset.tone === tone;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
+
+/* ---------------- Update pipeline ---------------- */
+function update(){
+  interruptTyping();
+  save();
+  renderBadge();
+  renderCatalogGrid();
+  renderComposerBody();
+  renderTotalsValues();
+  renderSuggest();
+  renderTone();
+  renderSheet();
+}
+/* light refresh for continuous typing in price/discount inputs (keeps focus) */
+function updateLight(){
+  save();
+  renderBadge();
+  renderTotalsValues();
+  renderSheet();
+}
+
+/* ---------------- AI actions ---------------- */
+function runAiDraft(){
+  if(aiBusy) return;
+  interruptTyping();
+  aiBusy = true;
+  setAiBtnBusy(true);
+  const myToken = ++typeToken;
+  pendingThink = setTimeout(async ()=>{
+    pendingThink = null;
+    if(myToken !== typeToken) return;
+    const d = curDraft();
+    d.ai = generateAiText(d, curProject());
+    save();
+    /* prefers-reduced-motion: skip the typing theater — render instantly
+       (the brief think-delay above keeps the interaction legible) */
+    if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+      renderSheet();
+      aiBusy = false;
+      setAiBtnBusy(false);
+      toast('Το κείμενο της προσφοράς συντάχθηκε');
+      return;
+    }
+    renderSheet({ typing:true });
+    /* type cover paragraphs sequentially (~20ms/char) */
+    for(let i=0;i<d.ai.cover.length;i++){
+      const el = $('#sheet [data-cover-p="'+i+'"]');
+      if(!el) break;
+      const ok = await typeInto(el, d.ai.cover[i], 20);
+      if(!ok) return;
+    }
+    /* then type all section scope texts concurrently */
+    const scopeJobs = Object.keys(d.ai.scopes).map(sec=>{
+      const el = $('#sheet [data-scope="'+sec+'"]');
+      return el ? typeInto(el, d.ai.scopes[sec], 20) : Promise.resolve(true);
+    });
+    const results = await Promise.all(scopeJobs);
+    if(myToken !== typeToken) return;
+    aiBusy = false;
+    setAiBtnBusy(false);
+    if(results.every(Boolean)) toast('Το κείμενο της προσφοράς συντάχθηκε');
+  }, 600 + Math.random()*300);
+}
+function runSuggest(){
+  if(aiBusy) return;
+  interruptTyping();
+  aiBusy = true;
+  setSuggestBtnBusy(true);
+  const myToken = ++typeToken;
+  pendingThink = setTimeout(()=>{
+    pendingThink = null;
+    if(myToken !== typeToken) return;
+    aiBusy = false;
+    setSuggestBtnBusy(false);
+    ui.suggest = SUGGESTIONS[state.active];
+    renderSuggest();
+  }, 600 + Math.random()*300);
+}
+
+/* ---------------- Toast ---------------- */
+let toastTimer = null;
+function toast(msg){
+  $('#toastMsg').textContent = msg;
+  const t = $('#toast');
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2300);
+}
+
+/* ---------------- Mobile view (bottom tab bar) ---------------- */
+function setMobileView(view){
+  ui.mview = view;
+  $$('.pane').forEach(p=>p.classList.toggle('pane-visible', p.dataset.view===view));
+  $$('#mobileNav button').forEach(b=>{
+    const on = b.dataset.view===view;
+    b.classList.toggle('active', on);
+    if(on) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current');
+  });
+}
+
+/* ---------------- Events ---------------- */
+function attachEvents(){
+  /* catalog tabs */
+  $('.tabbar').addEventListener('click', e=>{
+    const b = e.target.closest('button[data-tab]'); if(!b) return;
+    ui.tab = b.dataset.tab; ui.cat = null;
+    renderTabs(); renderChips(); renderCatalogGrid();
+  });
+  /* search */
+  $('#search').addEventListener('input', e=>{
+    ui.q = e.target.value.trim();
+    renderCatalogGrid();
+  });
+  /* category chips */
+  $('#chips').addEventListener('click', e=>{
+    const b = e.target.closest('button[data-cat]'); if(!b) return;
+    ui.cat = b.dataset.cat || null;
+    renderChips(); renderCatalogGrid();
+  });
+  /* catalog add / step */
+  $('#itemsList').addEventListener('click', e=>{
+    const add = e.target.closest('[data-add]');
+    if(add){
+      const it = itemById(add.dataset.add);
+      addItem(it.id);
+      toast('«' + it.name + '» προστέθηκε (' + curDraft().lines.find(l=>l.id===it.id).qty + ' ' + it.unit + ')');
+      return;
+    }
+    const st = e.target.closest('[data-step]');
+    if(st){ stepItem(st.dataset.id, parseInt(st.dataset.step,10)); }
+  });
+
+  /* project selector */
+  $('#projectSel').addEventListener('change', e=>{
+    interruptTyping();
+    state.active = e.target.value;
+    ui.suggest = null;
+    renderProjCard(); syncTotalsInputs();
+    update();
+  });
+
+  /* composer: steppers, removes, price + labor inputs */
+  $('#compBody').addEventListener('click', e=>{
+    const st = e.target.closest('[data-lstep]');
+    if(st){ stepItem(st.dataset.id, parseInt(st.dataset.lstep,10)); return; }
+    const rm = e.target.closest('[data-remove]');
+    if(rm){ removeLine(rm.dataset.remove); }
+  });
+  $('#compBody').addEventListener('input', e=>{
+    const pr = e.target.closest('[data-price]');
+    if(pr){
+      const v = parseNumStrict(pr.value);
+      if(v === null || v < 0) return; /* invalid/negative → keep last valid price */
+      setLinePrice(pr.dataset.price, v);
+      const l = curDraft().lines.find(x=>x.id===pr.dataset.price);
+      const cell = $('#compBody [data-ltotal="'+pr.dataset.price+'"]');
+      if(cell && l) cell.textContent = euro(round2(l.qty*l.price));
+      updateLight();
+      return;
+    }
+    const lb = e.target.closest('[data-labor-amt]');
+    if(lb){
+      const v = parseNumStrict(lb.value);
+      if(v === null || v < 0) return; /* invalid/negative → keep last valid amount */
+      curDraft().labor[lb.dataset.laborAmt].amount = Math.min(99999, round2(v));
+      updateLight();
+    }
+  });
+  $('#compBody').addEventListener('change', e=>{
+    const on = e.target.closest('[data-labor-on]');
+    if(on){
+      curDraft().labor[on.dataset.laborOn].on = on.checked;
+      update();
+      return;
+    }
+    /* normalize price displays on commit */
+    if(e.target.closest('[data-price],[data-labor-amt]')) update();
+  });
+
+  /* discount + VAT */
+  $('#discInp').addEventListener('input', e=>{
+    const v = parseNumStrict(e.target.value);
+    if(v === null || v < 0) return; /* invalid/negative → keep last valid percent */
+    curDraft().discount = Math.min(20, round2(v));
+    updateLight();
+  });
+  $('#discInp').addEventListener('change', ()=>{ syncTotalsInputs(); update(); });
+  $('#vatChk').addEventListener('change', e=>{
+    curDraft().vatOn = e.target.checked;
+    update();
+  });
+
+  /* suggestions */
+  $('#suggestBtn').addEventListener('click', runSuggest);
+  $('#suggestWrap').addEventListener('click', e=>{
+    if(e.target.closest('#sugClose')){ ui.suggest = null; renderSuggest(); return; }
+    const b = e.target.closest('[data-sadd]');
+    if(b){
+      const it = itemById(b.dataset.sadd);
+      addItem(it.id);
+      toast('«' + it.name + '» προστέθηκε στην προσφορά');
+    }
+  });
+
+  /* tone toggle: swaps drafted-text variant instantly */
+  $('.tone').addEventListener('click', e=>{
+    const b = e.target.closest('button[data-tone]'); if(!b) return;
+    const d = curDraft();
+    if(d.tone === b.dataset.tone) return;
+    interruptTyping();
+    d.tone = b.dataset.tone;
+    if(d.ai) d.ai = generateAiText(d, curProject());
+    save();
+    renderTone(); renderSheet();
+  });
+
+  /* AI draft, print, reset */
+  $('#aiBtn').addEventListener('click', runAiDraft);
+  $('#printBtn').addEventListener('click', ()=>window.print());
+  $('#resetBtn').addEventListener('click', ()=>{
+    interruptTyping();
+    state.drafts[state.active] = seedDraft(state.active);
+    ui.suggest = null;
+    syncTotalsInputs();
+    update();
+    toast('Η προσφορά επανήλθε στο αρχικό προσχέδιο');
+  });
+
+  /* mobile nav — 3-destination bottom tab bar (replaces the old drawer) */
+  $('#mobileNav').addEventListener('click', e=>{
+    const b = e.target.closest('button[data-view]'); if(!b) return;
+    setMobileView(b.dataset.view);
+  });
+}
+
+/* ---------------- Init ---------------- */
+function init(){
+  loadState();
+  /* project selector options */
+  $('#projectSel').innerHTML = PROJECT_ORDER.map(pid=>
+    `<option value="${pid}">${esc(PROJECTS[pid].label)}</option>`
+  ).join('');
+  $('#projectSel').value = state.active;
+  renderTabs(); renderChips();
+  renderProjCard(); syncTotalsInputs();
+  attachEvents();
+  setMobileView(ui.mview);
+  update();
+}
+init();
+</script>
+</body>
+</html>

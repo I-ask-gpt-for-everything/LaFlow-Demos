@@ -1,0 +1,1747 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Εισερχόμενες Προσφορές — LaFlow</title>
+<link rel="icon" href="data:,">
+<style>
+  /* ============================================================
+     LF-05 — ΕΙΣΕΡΧΟΜΕΝΕΣ ΠΡΟΣΦΟΡΕΣ · REDESIGN PASS
+     Visual/interaction-design upgrade only — the same functional
+     MVP as laflow-demos/built/incoming-offers, restyled around a
+     "correspondence register" concept: the inbox reads like a
+     ledger of arriving supplier mail, the detail view like a
+     received letter + an attached AI index-card, and compare like
+     a bound ledger spread. Same data, same math, same persistence
+     shape (new storage key — this is a separate file), same a11y
+     floor, now with an `inert`-based modal fix (POLISH P5) and a
+     currency helper that emits NBSP everywhere (POLISH P6).
+     Greek UI, English code. Zero network requests — inline SVG
+     only, local font-fallback stacks only.
+     ============================================================ */
+  :root{
+    --forest-deep:#12302a;
+    --forest:#1a3c34;
+    --sage:#8a9a5b;
+    --sage-light:#a3b18a;
+    --cream:#faf6ee;
+    --cream-alt:#f3eee1;
+    --ink:#233028;
+    --ink-soft:#4d5b50;
+    --terracotta:#bb6b3d;
+    --terracotta-deep:#a05526;
+    --gold:#b59445;
+    --gold-deep:#8a6d2a;
+    --line:rgba(26,60,52,.14);
+    --line-strong:rgba(26,60,52,.26);
+    --paper:#fffdf7;
+    --danger:#9c3f2b;
+    --c-green:#5c7037;
+    --c-amber:#b58324;
+    --c-grey:#7d8a80;
+    --best-bg:#eef2e2;
+    --best-line:#5c7037;
+    --serif:'Cormorant Garamond','Times New Roman',Georgia,serif;
+    --sans:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+    --radius:10px;
+    --radius-lg:16px;
+    --topbar-h:76px;
+    --shadow-card:0 1px 2px rgba(18,48,42,.06),0 8px 22px rgba(18,48,42,.07);
+    --shadow-float:0 4px 10px rgba(18,48,42,.1),0 16px 34px rgba(18,48,42,.1);
+    --shadow-sheet:0 26px 70px rgba(18,48,42,.18);
+    /* type scale */
+    --fs-2xs:12px; --fs-xs:13px; --fs-sm:14.5px; --fs-base:17px;
+    --fs-md:18px; --fs-lg:20px; --fs-xl:23px; --fs-2xl:28px; --fs-3xl:34px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{min-height:100%}
+  body{
+    font-family:var(--sans);color:var(--ink);
+    line-height:1.55;-webkit-font-smoothing:antialiased;font-size:var(--fs-base);overflow-x:hidden;
+    background-color:var(--cream);
+    /* faint paper grain + ledger rule lines — CSS/inline-SVG texture only, no image files */
+    background-image:
+      repeating-linear-gradient(180deg, rgba(26,60,52,.035) 0, rgba(26,60,52,.035) 1px, transparent 1px, transparent 34px),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+    background-attachment:fixed;
+  }
+  ::selection{background:var(--sage-light);color:var(--forest-deep)}
+  button{font-family:inherit;cursor:pointer;color:inherit}
+  input,select,textarea{font-family:inherit;color:inherit}
+  svg{display:block}
+
+  /* ============ TOP BAR ============ */
+  .topbar{
+    min-height:var(--topbar-h);background:var(--forest-deep);color:var(--cream);
+    display:flex;align-items:center;gap:22px;padding:11px 28px;
+    border-bottom:1px solid rgba(181,148,69,.4);
+    position:relative;
+  }
+  .topbar::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;background:linear-gradient(90deg,transparent,rgba(181,148,69,.7) 20%,rgba(181,148,69,.7) 80%,transparent)}
+  .brand{display:flex;align-items:center;gap:12px;flex:none}
+  .brand .mark{width:44px;height:44px;border-radius:12px;background:var(--forest);border:1.5px solid rgba(181,148,69,.5);display:grid;place-items:center;flex:none}
+  .brand .mark svg{width:24px;height:24px;color:var(--sage-light)}
+  .brand .nm{font-family:var(--serif);font-weight:600;font-size:28px;line-height:1;color:var(--cream)}
+  .brand .nm b{color:var(--gold);font-weight:600}
+  .topbar .feat{min-width:0}
+  .topbar .feat h1{font-family:var(--serif);font-weight:600;font-size:25px;line-height:1.1;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .topbar .feat p{font-size:13.5px;color:var(--sage-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .topbar .spacer{flex:1}
+  .topbar .demo-tag{flex:none;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--sage-light);border:1px solid rgba(163,177,138,.4);padding:8px 13px;border-radius:999px;white-space:nowrap}
+
+  /* ============ PAGE ============ */
+  .page{max-width:1140px;margin:0 auto;padding:26px 28px 100px}
+  .intro{
+    display:flex;gap:13px;align-items:flex-start;font-size:var(--fs-base);color:var(--ink-soft);
+    background:var(--cream-alt);border:1px solid var(--line-strong);border-left:4px solid var(--gold);border-radius:var(--radius);
+    padding:14px 17px;margin-bottom:20px;line-height:1.55;position:relative;
+  }
+  .intro .pin{position:absolute;top:-9px;left:22px;width:22px;height:22px;color:var(--gold-deep);opacity:.9;transform:rotate(-14deg)}
+  .intro svg.ic{width:21px;height:21px;color:var(--gold-deep);flex:none;margin-top:2px}
+  .intro b{color:var(--forest)}
+  .intro .sr{color:var(--terracotta-deep);font-weight:700}
+
+  /* ============ TOOLBAR ============ */
+  .toolbar{display:flex;flex-direction:column;gap:14px;margin-bottom:16px}
+  .cat-chips{display:flex;flex-wrap:wrap;gap:9px}
+  .catchip{
+    min-height:46px;padding:9px 16px;border-radius:999px;border:1.5px solid var(--line-strong);
+    background:#fff;color:var(--ink);font-size:var(--fs-sm);font-weight:700;display:inline-flex;align-items:center;gap:9px;
+    transition:background .14s,border-color .14s,color .14s;white-space:nowrap;
+  }
+  .catchip .ci{width:17px;height:17px;flex:none;color:var(--cc,var(--forest))}
+  .catchip .ci svg{width:100%;height:100%}
+  .catchip .cn{font-variant-numeric:tabular-nums;background:var(--cream-alt);border:1px solid var(--line);border-radius:999px;padding:1px 8px;font-size:12.5px;color:var(--ink-soft);min-width:24px;text-align:center}
+  .catchip:hover{border-color:var(--forest)}
+  .catchip[aria-pressed="true"]{background:var(--cc,var(--forest));border-color:var(--cc,var(--forest));color:#fff}
+  .catchip[aria-pressed="true"] .ci{color:#fff}
+  .catchip[aria-pressed="true"] .cn{background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.4);color:#fff}
+  .catchip.arch{margin-left:auto}
+  @media(max-width:620px){ .catchip.arch{margin-left:0} }
+
+  .filters{display:flex;flex-wrap:wrap;gap:11px 14px;align-items:center}
+  .search{position:relative;flex:1 1 260px;min-width:0}
+  .search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:19px;height:19px;color:var(--ink-soft);pointer-events:none}
+  .search input{
+    width:100%;min-height:48px;border:1.5px solid var(--line-strong);border-radius:999px;background:#fff;
+    padding:10px 17px 10px 42px;font-size:var(--fs-sm);outline:none;transition:border-color .14s,box-shadow .14s;
+  }
+  .search input:focus-visible{border-color:var(--forest);box-shadow:0 0 0 3px rgba(26,60,52,.14)}
+  .sort-wrap{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+  .sort-lbl{font-size:12px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-soft);font-weight:700}
+  .sortseg{display:flex;border:1.5px solid var(--line-strong);border-radius:999px;overflow:hidden;background:#fff}
+  .sortbtn{
+    min-height:48px;padding:9px 16px;border:none;background:transparent;color:var(--ink-soft);
+    font-size:var(--fs-xs);font-weight:700;display:inline-flex;align-items:center;gap:7px;transition:background .14s,color .14s;white-space:nowrap;
+  }
+  .sortbtn svg{width:15px;height:15px}
+  .sortbtn[aria-pressed="true"]{background:var(--forest);color:#fff}
+  .sortbtn+.sortbtn{border-left:1.5px solid var(--line-strong)}
+
+  /* selection / compare bar */
+  .selbar{
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--forest);color:#fff;
+    border-radius:var(--radius);padding:12px 16px;margin-bottom:16px;box-shadow:var(--shadow-card);
+    border:1px solid rgba(181,148,69,.3);
+  }
+  .selbar[hidden]{display:none}
+  .selbar .selcount{font-weight:700;font-size:var(--fs-sm);display:inline-flex;align-items:center;gap:9px}
+  .selbar .selcount .sn{background:var(--gold);color:var(--forest-deep);border-radius:999px;min-width:27px;height:27px;padding:0 8px;display:inline-flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+  .selbar .selhint{font-size:var(--fs-xs);color:var(--sage-light);flex:1 1 auto;min-width:0}
+  .selbar .spacer{flex:1}
+  .btn-compare{
+    min-height:46px;padding:10px 19px;border-radius:999px;border:none;background:var(--gold);color:var(--forest-deep);
+    font-weight:800;font-size:var(--fs-sm);display:inline-flex;align-items:center;gap:9px;transition:transform .12s,background .14s;
+  }
+  .btn-compare svg{width:18px;height:18px}
+  .btn-compare:hover{background:#caa24f}
+  .btn-compare:active{transform:translateY(1px)}
+  .btn-compare:disabled{background:rgba(255,255,255,.22);color:rgba(255,255,255,.6);cursor:not-allowed}
+  .btn-clearsel{min-height:46px;padding:9px 15px;border-radius:999px;border:1.5px solid rgba(163,177,138,.5);background:transparent;color:var(--sage-light);font-weight:700;font-size:var(--fs-xs);display:inline-flex;align-items:center;gap:7px;transition:background .14s,color .14s}
+  .btn-clearsel svg{width:15px;height:15px}
+  .btn-clearsel:hover{background:rgba(163,177,138,.16);color:#fff}
+
+  /* ============ OFFER LIST — "register entries" ============ */
+  .list{display:flex;flex-direction:column;gap:12px}
+  .offer{
+    display:flex;align-items:stretch;gap:0;background:#fff;border:1px solid var(--line);
+    border-left:5px solid var(--a,var(--forest));border-radius:var(--radius);box-shadow:var(--shadow-card);
+    overflow:hidden;transition:box-shadow .14s,border-color .14s,transform .14s;
+  }
+  .offer:hover{box-shadow:var(--shadow-float);border-color:var(--line-strong)}
+  .offer.sel{border-color:var(--a,var(--forest));box-shadow:0 0 0 2px var(--a,var(--forest)) inset,var(--shadow-card)}
+  .ck{
+    flex:none;width:54px;min-height:44px;border:none;border-right:1px solid var(--line);background:var(--cream-alt);
+    display:grid;place-items:center;transition:background .14s;
+  }
+  .ck:hover{background:#eae3d2}
+  .ck .box{width:25px;height:25px;border-radius:7px;border:2px solid var(--line-strong);background:#fff;display:grid;place-items:center;transition:background .14s,border-color .14s}
+  .ck .box svg{width:16px;height:16px;color:#fff;opacity:0;transition:opacity .12s}
+  .ck[aria-checked="true"] .box{background:var(--a,var(--forest));border-color:var(--a,var(--forest))}
+  .ck[aria-checked="true"] .box svg{opacity:1}
+  .offer-open{
+    flex:1;min-width:0;display:flex;align-items:flex-start;gap:14px;text-align:left;background:transparent;border:none;
+    padding:16px 17px;
+  }
+  .ava{
+    flex:none;width:50px;height:50px;border-radius:50%;background:var(--a,var(--forest));color:#fff;
+    display:grid;place-items:center;font-family:var(--serif);font-weight:600;font-size:18px;letter-spacing:.02em;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -3px 5px rgba(0,0,0,.22),0 2px 5px rgba(18,48,42,.2);
+    border:1.5px solid rgba(255,255,255,.3);
+  }
+  .ob-body{flex:1;min-width:0}
+  .ob-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .ob-supwrap{min-width:0;flex:1 1 220px}
+  .ob-sup{font-size:var(--fs-md);font-weight:700;color:var(--ink);line-height:1.25;display:block}
+  .ob-tagrow{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:6px}
+  .tag-flag{
+    font-size:12.5px;font-weight:700;color:#fff;background:var(--cc,var(--forest));
+    border-radius:4px 12px 12px 4px;padding:4px 11px 4px 9px;white-space:nowrap;letter-spacing:.01em;
+    display:inline-flex;align-items:center;gap:5px;
+  }
+  .pref-badge{font-size:11.5px;font-weight:800;color:var(--gold-deep);background:#f6efd8;border:1px solid rgba(181,148,69,.5);border-radius:4px 12px 12px 4px;padding:4px 10px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+  .pref-badge svg{width:13px;height:13px}
+  .ob-amt{flex:none;text-align:right}
+  .ob-amt-lbl{display:block;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:1px}
+  .ob-amt-val{font-family:var(--serif);font-size:27px;font-weight:600;color:var(--forest);font-variant-numeric:tabular-nums;line-height:1.05;white-space:nowrap}
+  .ob-amt-val.amber{color:var(--c-amber)}
+  .ob-amt-flag{display:block;font-size:11px;font-weight:800;color:var(--c-amber);margin-top:3px;white-space:nowrap}
+  .ob-subj{font-size:15px;color:var(--ink-soft);margin-top:7px;line-height:1.42;overflow-wrap:anywhere}
+  .ob-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px;align-items:center}
+  .mchip{
+    display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;border-radius:999px;
+    padding:4px 11px;border:1px solid var(--line-strong);background:#fff;color:var(--ink);white-space:nowrap;
+  }
+  .mchip svg{width:13px;height:13px;flex:none;color:var(--ink-soft)}
+  .mchip.proj{color:var(--forest);border-color:rgba(26,60,52,.28);background:var(--cream-alt)}
+  .mchip.proj svg{color:var(--forest)}
+  .mchip.added{color:var(--gold-deep);border-color:rgba(181,148,69,.5);background:#f6efd8}
+  .mchip.added svg{color:var(--gold-deep)}
+  .ob-sum{display:flex;gap:8px;align-items:flex-start;font-size:14px;color:var(--ink-soft);margin-top:9px;line-height:1.48;font-style:italic;padding-top:9px;border-top:1px dashed var(--line)}
+  .ob-sum svg{width:15px;height:15px;color:var(--sage);flex:none;margin-top:2px}
+  .ob-right{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:8px;padding:16px 15px 16px 4px}
+  .ob-date{font-size:12px;color:var(--ink-soft);white-space:nowrap}
+  .ob-go{width:22px;height:22px;color:var(--ink-soft)}
+
+  .empty{
+    display:flex;gap:15px;align-items:center;background:var(--cream-alt);border:1.5px dashed var(--line-strong);
+    border-radius:var(--radius-lg);padding:26px 22px;color:var(--ink-soft);font-size:var(--fs-base);line-height:1.5;
+  }
+  .empty .em-ico{flex:none;width:44px;height:44px;color:var(--gold-deep);opacity:.85}
+  .empty b{color:var(--forest)}
+
+  /* ============ DETAIL + COMPARE shared: back bar ============ */
+  .backbar{display:flex;align-items:flex-start;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+  .btn-back{
+    min-height:46px;padding:10px 17px;border-radius:var(--radius);border:1.5px solid var(--line-strong);background:#fff;
+    color:var(--forest);font-weight:700;font-size:var(--fs-sm);display:inline-flex;align-items:center;gap:8px;transition:background .14s,border-color .14s;
+  }
+  .btn-back svg{width:17px;height:17px}
+  .btn-back:hover{background:var(--cream-alt);border-color:var(--forest)}
+  .backbar .bb-tt{min-width:0}
+  .bb-eyebrow{display:block;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-deep);font-weight:700;margin-bottom:3px}
+  .backbar .bb-title{font-family:var(--serif);font-weight:600;font-size:var(--fs-2xl);color:var(--forest);line-height:1.12;min-width:0}
+
+  /* ============ DETAIL VIEW ============ */
+  .detail-grid{display:grid;grid-template-columns:minmax(0,1.18fr) minmax(0,1fr);gap:26px;align-items:start}
+
+  /* --- Document facsimile (styled HTML letterhead) --- */
+  .doc-wrap{position:relative}
+  .doc{
+    background:var(--paper);border-radius:6px;box-shadow:var(--shadow-sheet);border:1px solid var(--line);
+    padding:32px 34px 28px;color:var(--ink);font-size:var(--fs-xs);line-height:1.58;
+    --dc:var(--forest);position:relative;transform:rotate(-.45deg);
+  }
+  .doc-stamp{
+    position:absolute;top:20px;right:26px;width:88px;height:88px;border-radius:50%;
+    border:2.5px solid var(--terracotta);color:var(--terracotta);opacity:.5;transform:rotate(-13deg);
+    display:grid;place-items:center;text-align:center;font-size:10.5px;font-weight:800;letter-spacing:.12em;
+    text-transform:uppercase;line-height:1.5;mix-blend-mode:multiply;pointer-events:none;
+  }
+  .doc-stamp span{display:block;font-size:12.5px;font-family:var(--serif);letter-spacing:.02em}
+  .doc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;padding-bottom:16px;border-bottom:2.5px solid var(--dc)}
+  .doc-head.rgx-hl,.doc [data-region].rgx-hl{background:#fff6d9;box-shadow:0 0 0 3px #f2e2a3;border-radius:6px}
+  .doc [data-region]{transition:background .2s,box-shadow .2s;border-radius:6px}
+  .dh-brand{display:flex;align-items:center;gap:12px;min-width:0}
+  .dh-logo{width:48px;height:48px;border-radius:50%;background:var(--dc);color:#fff;display:grid;place-items:center;font-family:var(--serif);font-weight:600;font-size:19px;flex:none}
+  .dh-name{font-family:var(--serif);font-weight:600;font-size:23px;color:var(--dc);line-height:1.05}
+  .dh-tag{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-top:4px}
+  .dh-meta{text-align:right;font-size:11.5px;color:var(--ink-soft);line-height:1.7;flex:none}
+  .dh-meta .doc-k{font-family:var(--serif);font-size:16px;color:var(--dc);font-weight:600}
+  .dh-meta b{color:var(--ink);font-weight:600}
+  .doc-title{margin:17px 0 4px}
+  .doc-title .kk{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-deep);font-weight:700}
+  .doc-title h3{font-family:var(--serif);font-weight:600;font-size:22px;color:var(--dc);line-height:1.15;margin-top:3px}
+  .doc-recip{font-size:12px;color:var(--ink-soft);margin-top:6px}
+  .doc-recip b{color:var(--ink)}
+  .doc-tbl{width:100%;border-collapse:collapse;margin-top:15px}
+  .doc-tbl th{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;text-align:left;padding:0 6px 7px 0;border-bottom:1.5px solid var(--line-strong)}
+  .doc-tbl th.r{text-align:right;padding-right:0}
+  .doc-tbl td{padding:8px 6px 8px 0;border-bottom:1px solid var(--line);font-size:12.5px;vertical-align:top}
+  .doc-tbl td.nm{color:var(--ink)}
+  .doc-tbl td.q{color:var(--ink-soft);white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+  .doc-tbl td.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;padding-right:0;font-weight:600;color:var(--ink)}
+  .doc-totbox{margin-top:17px;display:flex;justify-content:flex-end}
+  .doc-totbox .b{min-width:250px}
+  .doc-totbox .r{display:flex;justify-content:space-between;gap:22px;padding:4px 0;font-size:12.5px;color:var(--ink-soft)}
+  .doc-totbox .r .v{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+  .doc-totbox .gr{display:flex;justify-content:space-between;align-items:baseline;gap:22px;margin-top:7px;padding-top:10px;border-top:2px solid var(--dc)}
+  .doc-totbox .gr .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--dc)}
+  .doc-totbox .gr .v{font-family:var(--serif);font-size:25px;font-weight:600;color:var(--dc);font-variant-numeric:tabular-nums}
+  .doc-terms{margin-top:17px;padding:12px 15px;background:var(--cream-alt);border-left:3px solid var(--gold);border-radius:6px;font-size:11.5px;color:var(--ink-soft);line-height:1.58}
+  .doc-terms b{color:var(--ink)}
+  .doc-valid{margin-top:12px;font-size:12px;color:var(--ink-soft)}
+  .doc-valid b{color:var(--dc);font-weight:700}
+  .doc-foot{margin-top:19px;padding-top:12px;border-top:1px solid var(--gold);font-size:10.5px;color:var(--ink-soft);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+
+  /* --- Extraction panel ("AI index card") --- */
+  .xpanel{background:#fff;border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden;position:relative}
+  .xp-tab{position:absolute;top:-13px;left:22px;background:var(--forest-deep);color:var(--sage-light);font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:6px 13px;border-radius:8px 8px 0 0}
+  .xp-head{padding:22px 20px 15px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fbfcf7,#fff)}
+  .xp-kick{display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-deep);font-weight:700}
+  .xp-kick svg{width:15px;height:15px}
+  .xp-head h2{font-family:var(--serif);font-weight:600;font-size:var(--fs-xl);color:var(--forest);margin-top:6px;line-height:1.12}
+  .xp-status{display:flex;align-items:center;gap:9px;margin-top:10px;font-size:13px;color:var(--ink-soft);min-height:20px}
+  .xp-status .dotpulse{width:9px;height:9px;border-radius:50%;background:var(--sage);flex:none;animation:pulse 1s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+  .xp-status.done .dotpulse{background:var(--c-green);animation:none}
+  .xp-legend{display:flex;gap:14px;flex-wrap:wrap;padding:11px 20px;border-bottom:1px solid var(--line);font-size:12px;color:var(--ink-soft);background:var(--cream-alt)}
+  .xp-legend .li{display:inline-flex;gap:6px;align-items:center}
+  .xp-legend .cb{width:11px;height:11px;border-radius:3px;flex:none}
+  .cb.green{background:var(--c-green)} .cb.amber{background:var(--c-amber)} .cb.grey{background:var(--c-grey)}
+
+  .xfields{padding:6px 20px 15px}
+  .xfield{
+    padding:14px 0;border-bottom:1px dotted var(--line-strong);opacity:0;transform:translateY(6px);
+    transition:opacity .28s ease,transform .28s ease;
+  }
+  .xfield.in{opacity:1;transform:none}
+  .xfield:last-child{border-bottom:none}
+  .xf-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .xf-k{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);font-weight:700}
+
+  /* confidence — ring gauge, never alarm-red (uncertainty != error) */
+  .conf{display:inline-flex;align-items:center;gap:8px}
+  .conf-ring{width:34px;height:34px;border-radius:50%;position:relative;flex:none;
+    background:conic-gradient(var(--ring-c,var(--c-green)) calc(var(--pct,100)*1%),#e4e7dd 0)}
+  .conf-ring::after{content:'';position:absolute;inset:3.5px;background:#fff;border-radius:50%}
+  .conf-ring b{position:relative;z-index:1;display:grid;place-items:center;width:100%;height:100%;font-size:10.5px;font-weight:800;color:var(--ink)}
+  .conf.warn .conf-ring{--ring-c:var(--c-amber)}
+  .conf.miss .conf-ring{--ring-c:var(--c-grey);--pct:100}
+  .conf-tx{font-size:12.5px;font-weight:700;color:var(--ink-soft);white-space:nowrap}
+  .conf.ok .conf-tx{color:#43571f}
+  .conf.warn .conf-tx{color:#7d5a10}
+  .conf.fixed .conf-ring{--ring-c:var(--c-green);--pct:100}
+  .conf.fixed .conf-tx{color:#43571f}
+
+  .xf-v{font-size:17px;color:var(--ink);margin-top:7px;font-weight:600;line-height:1.35;overflow-wrap:anywhere}
+  .xf-v.big{font-family:var(--serif);font-size:24px;color:var(--forest);font-variant-numeric:tabular-nums}
+  .xf-v.missing{color:var(--c-grey);font-weight:600;font-style:italic}
+  .xf-note{font-size:13px;color:var(--ink-soft);margin-top:5px;line-height:1.42}
+  .xf-lines{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+  .xf-line{display:flex;justify-content:space-between;gap:12px;font-size:13.5px;color:var(--ink);padding:3px 0}
+  .xf-line .ln-n{color:var(--ink-soft);min-width:0;overflow-wrap:anywhere}
+  .xf-line .ln-v{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+  /* editable / correction affordances */
+  .xf-edit{display:flex;gap:8px;align-items:center;margin-top:9px;flex-wrap:wrap}
+  .xf-select,.xf-input{
+    min-height:46px;border:1.5px solid var(--line-strong);border-radius:var(--radius);background:#fff;
+    padding:9px 13px;font-size:var(--fs-sm);font-weight:600;color:var(--ink);outline:none;transition:border-color .14s,box-shadow .14s;
+  }
+  .xf-input{width:160px;max-width:100%;font-variant-numeric:tabular-nums}
+  .xf-select{width:100%}
+  .xf-select:focus-visible,.xf-input:focus-visible{border-color:var(--forest);box-shadow:0 0 0 3px rgba(26,60,52,.14)}
+  .xf-btn{
+    min-height:46px;padding:9px 16px;border-radius:var(--radius);border:1.5px solid var(--forest);background:var(--forest);color:#fff;
+    font-weight:700;font-size:var(--fs-xs);display:inline-flex;align-items:center;gap:7px;transition:background .14s;
+  }
+  .xf-btn svg{width:15px;height:15px}
+  .xf-btn:hover{background:var(--forest-deep)}
+  .xf-hint{font-size:12.5px;color:var(--gold-deep);margin-top:7px;display:flex;gap:6px;align-items:center;line-height:1.4}
+  .xf-hint svg{width:14px;height:14px;flex:none}
+  .xf-fixed{color:var(--c-green);font-weight:700}
+
+  /* actions block */
+  .xactions{padding:16px 20px 20px;border-top:1px solid var(--line);background:var(--cream-alt);display:flex;flex-direction:column;gap:13px}
+  .xa-field{display:flex;flex-direction:column;gap:6px}
+  .xa-field label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);font-weight:700}
+  .xa-row{display:flex;gap:10px;flex-wrap:wrap}
+  .btn{
+    min-height:48px;border-radius:var(--radius);border:none;font-weight:700;font-size:var(--fs-sm);
+    display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:11px 18px;transition:transform .12s,background .14s,border-color .14s,color .14s;
+  }
+  .btn svg{width:18px;height:18px;flex:none}
+  .btn:active{transform:translateY(1px)}
+  .btn-primary{flex:1;min-width:180px;background:var(--terracotta-deep);color:#fff}
+  .btn-primary:hover{background:#8f4a1f}
+  .btn-ghost{min-width:150px;background:#fff;border:1.5px solid var(--line-strong);color:var(--forest)}
+  .btn-ghost:hover{border-color:var(--forest);background:#fff}
+  .btn-ghost.danger:hover{color:var(--danger);border-color:var(--danger);background:#f7ebe5}
+
+  /* ============ COMPARE VIEW — "ledger spread" ============ */
+  .cmp-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;box-shadow:var(--shadow-card)}
+  .cmp-tbl{border-collapse:collapse;width:100%;min-width:540px}
+  .cmp-tbl th,.cmp-tbl td{border-bottom:1px solid var(--line);padding:13px 15px;text-align:left;vertical-align:top}
+  .cmp-tbl thead th{position:sticky;top:0;background:var(--forest);color:#fff;border-bottom:none;z-index:2}
+  .cmp-tbl thead th.rowlbl{background:var(--forest-deep)}
+  .cmp-col{min-width:186px}
+  .ch-sup{font-weight:700;font-size:15px;line-height:1.2;display:flex;align-items:center;gap:8px}
+  .ch-sup .cava{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.16);display:grid;place-items:center;font-family:var(--serif);font-weight:600;font-size:13px;flex:none;border:1px solid rgba(255,255,255,.28)}
+  .ch-amt{font-family:var(--serif);font-size:21px;font-weight:600;margin-top:8px;font-variant-numeric:tabular-nums}
+  .ch-pref{margin-top:10px}
+  .btn-pref{
+    width:100%;min-height:44px;padding:8px 12px;border-radius:999px;border:1.5px solid rgba(163,177,138,.55);
+    background:rgba(255,255,255,.08);color:#fff;font-weight:700;font-size:12.5px;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:background .14s,border-color .14s;
+  }
+  .btn-pref svg{width:15px;height:15px}
+  .btn-pref:hover{background:rgba(255,255,255,.18)}
+  .btn-pref.on{background:var(--gold);border-color:var(--gold);color:var(--forest-deep)}
+  .cmp-tbl td.rowlbl{background:var(--cream-alt);font-weight:700;color:var(--ink);font-family:var(--serif);font-size:15px;font-style:italic;min-width:160px;position:sticky;left:0;z-index:1;box-shadow:inset -1px 0 0 var(--line-strong)}
+  .cmp-tbl td.rowlbl .rl-um{display:block;font-size:11px;color:var(--ink-soft);font-weight:600;font-style:normal;font-family:var(--sans);margin-top:2px}
+  .cmp-tbl tr.tot td{font-size:16px}
+  .cmp-tbl tr.tot td.rowlbl{color:var(--forest);text-transform:uppercase;letter-spacing:.05em;font-size:13px;font-style:normal}
+  .cell{font-variant-numeric:tabular-nums;font-size:14.5px;color:var(--ink);white-space:nowrap}
+  .cell.big{font-family:var(--serif);font-size:19px;font-weight:600;color:var(--forest)}
+  .cell.gap{color:var(--c-grey);font-style:italic;font-weight:600}
+  .cmp-tbl td.best{background:var(--best-bg);box-shadow:inset -1px 0 0 var(--line-strong),inset 3px 0 0 var(--best-line);position:relative}
+  .cmp-tbl td.best::before{content:'';position:absolute;top:0;right:0;border-style:solid;border-width:0 15px 15px 0;border-color:var(--gold) transparent transparent transparent}
+  .cell .best-tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;color:#43571f;margin-left:7px;white-space:nowrap}
+  .cell .best-tag svg{width:12px;height:12px}
+  .cell .solo-tag{display:inline-block;font-size:11px;font-weight:700;color:var(--gold-deep);margin-left:7px}
+
+  .verdict{
+    margin-top:20px;background:#fff;border:1.5px solid var(--sage);border-radius:var(--radius-lg);
+    padding:20px 20px 18px 26px;box-shadow:var(--shadow-card);position:relative;
+  }
+  .verdict .clip{position:absolute;top:-16px;left:20px;width:34px;height:34px;color:var(--gold-deep);transform:rotate(8deg)}
+  .verdict h3{font-size:14.5px;font-weight:700;color:var(--forest);display:flex;align-items:center;gap:9px}
+  .verdict h3 svg{width:18px;height:18px;color:var(--sage);flex:none}
+  .verdict h3 .tag{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);border:1px solid var(--line-strong);padding:2px 8px;border-radius:999px;margin-left:auto;font-weight:700}
+  .verdict p{font-family:var(--serif);font-size:19px;font-style:italic;line-height:1.55;color:var(--ink);margin-top:12px}
+  .verdict .pick{margin-top:14px;display:flex;gap:11px;align-items:center;flex-wrap:wrap;padding-top:14px;border-top:1px dashed var(--line)}
+  .verdict .pick .pk-lbl{font-size:var(--fs-sm);color:var(--ink-soft);font-style:normal;font-family:var(--sans)}
+  .verdict .pick .pk-lbl b{color:var(--forest);font-weight:700}
+  .cmp-hint{font-size:13px;color:var(--ink-soft);margin-top:12px;display:flex;gap:7px;align-items:center}
+  .cmp-hint svg{width:15px;height:15px;flex:none;color:var(--gold-deep)}
+
+  /* ============ NEGOTIATION MODAL — "stationery" ============ */
+  .overlay{position:fixed;inset:0;z-index:200;background:rgba(18,48,42,.55);opacity:0;visibility:hidden;transition:opacity .22s,visibility .22s}
+  body.modal-open .overlay{opacity:1;visibility:visible}
+  body.modal-open{overflow:hidden}
+  .modal{
+    position:fixed;z-index:210;top:50%;left:50%;transform:translate(-50%,-48%) scale(.98);
+    width:min(640px,94vw);max-height:90vh;background:var(--paper);border-radius:var(--radius-lg);
+    box-shadow:0 34px 90px rgba(18,48,42,.42);display:flex;flex-direction:column;opacity:0;visibility:hidden;
+    transition:opacity .22s,visibility .22s,transform .22s;
+  }
+  body.modal-open .modal{opacity:1;visibility:visible;transform:translate(-50%,-50%) scale(1)}
+  .m-head{padding:18px 22px 15px;border-bottom:2px solid var(--terracotta-deep);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex:none}
+  .m-kick{display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--terracotta-deep);font-weight:700}
+  .m-kick svg{width:15px;height:15px}
+  .m-head h2{font-family:var(--serif);font-weight:600;font-size:24px;color:var(--forest);margin-top:6px;line-height:1.12}
+  .m-head .m-sub{font-size:13px;color:var(--ink-soft);margin-top:3px}
+  .m-close{min-width:46px;min-height:46px;flex:none;border:1.5px solid var(--line-strong);background:#fff;color:var(--ink-soft);border-radius:var(--radius);display:grid;place-items:center;transition:background .14s,color .14s}
+  .m-close svg{width:20px;height:20px}
+  .m-close:hover{color:var(--forest);border-color:var(--forest);background:var(--cream-alt)}
+  .m-body{padding:18px 22px 20px;overflow-y:auto;min-height:0}
+  .m-drafthead{display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:10px}
+  .m-drafthead svg{width:15px;height:15px;color:var(--gold-deep)}
+  .m-drafthead .tag{margin-left:auto;font-size:10.5px;border:1px solid var(--line-strong);border-radius:999px;padding:2px 8px}
+  .draft-box{position:relative}
+  .draft-box textarea{
+    width:100%;min-height:280px;resize:vertical;font-family:var(--sans);font-size:var(--fs-sm);line-height:1.62;color:var(--ink);
+    background:#fff;border:1.5px solid var(--line-strong);border-radius:var(--radius-lg);padding:15px 17px;outline:none;transition:border-color .14s,box-shadow .14s;
+  }
+  .draft-box textarea:focus-visible{border-color:var(--forest);box-shadow:0 0 0 3px rgba(26,60,52,.14)}
+  .draft-box textarea:disabled{background:#fbfaf5;color:var(--ink)}
+  .draft-veil{position:absolute;inset:0;display:none;border-radius:var(--radius-lg);overflow:hidden;background:rgba(251,250,245,.72)}
+  .draft-box.busy .draft-veil{display:block}
+  .draft-veil::after{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(138,154,91,.2) 50%,transparent 70%);animation:shim 1.1s linear infinite}
+  @keyframes shim{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+  .draft-veil .dv-lbl{position:absolute;top:16px;left:50%;transform:translateX(-50%);background:var(--forest-deep);color:#fff;font-size:13px;font-weight:600;border-radius:999px;padding:8px 15px;display:flex;gap:8px;align-items:center;white-space:nowrap}
+  .draft-veil .dv-lbl svg{width:15px;height:15px;color:var(--sage-light)}
+  .m-editnote{font-size:12.5px;color:var(--ink-soft);margin-top:9px;display:flex;gap:6px;align-items:center}
+  .m-editnote svg{width:14px;height:14px;flex:none;color:var(--gold-deep)}
+  .m-actions{display:flex;gap:11px;margin-top:15px;flex-wrap:wrap}
+  .btn-copy{flex:1;min-width:160px;background:#fff;border:1.5px solid var(--forest);color:var(--forest)}
+  .btn-copy:hover{background:var(--cream-alt)}
+  .btn-copy.done{background:var(--c-green);border-color:var(--c-green);color:#fff}
+  .btn-mclose{min-width:120px;background:var(--forest);color:#fff}
+  .btn-mclose:hover{background:var(--forest-deep)}
+
+  /* ============ TOAST (5s undo) ============ */
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(16px);z-index:300;
+    background:var(--forest-deep);color:#fff;font-weight:600;font-size:15px;padding:12px 13px 12px 19px;
+    border-radius:var(--radius);box-shadow:0 12px 34px rgba(18,48,42,.38);display:flex;align-items:center;gap:12px;
+    opacity:0;visibility:hidden;transition:opacity .2s,transform .2s,visibility .2s;max-width:min(94vw,560px);
+    border:1px solid rgba(181,148,69,.35);
+  }
+  .toast.show{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+  .toast .t-ico{width:18px;height:18px;color:var(--sage-light);flex:none}
+  .toast .t-msg{min-width:0}
+  .toast .t-undo{flex:none;min-height:44px;padding:8px 15px;border:1.5px solid rgba(163,177,138,.55);border-radius:999px;background:transparent;color:var(--sage-light);font-weight:700;font-size:14.5px;display:inline-flex;align-items:center;gap:7px;transition:background .14s,color .14s}
+  .toast .t-undo svg{width:15px;height:15px}
+  .toast .t-undo:hover{background:rgba(163,177,138,.16);color:#fff}
+  .toast .t-undo[hidden]{display:none}
+
+  .hidden{display:none !important}
+
+  /* ============ RESPONSIVE ============ */
+  @media(max-width:900px){
+    .detail-grid{grid-template-columns:1fr}
+  }
+  @media(max-width:760px){
+    .page{padding:20px 16px 88px}
+    .filters{gap:11px}
+    .search{flex:1 1 100%}
+  }
+  @media(max-width:620px){
+    .topbar{gap:12px;padding:10px 14px}
+    .topbar .demo-tag{display:none}
+    .selbar .selhint{flex:1 1 100%;order:5}
+  }
+  /* phone (~375px): inbox single-column, detail stacked, compare scrolls in container */
+  @media(max-width:560px){
+    .brand .nm{font-size:23px}
+    .brand .mark{width:38px;height:38px}
+    .topbar .feat h1{font-size:18px;white-space:normal}
+    .topbar .feat p{font-size:12px;white-space:normal}
+    .page{padding:14px 11px 80px}
+    .intro{font-size:14.5px;padding:13px 13px 12px}
+    .intro .pin{display:none}
+    .cat-chips{gap:7px}
+    .catchip{padding:8px 12px;font-size:13.5px;min-height:44px}
+    .sort-wrap{flex:1 1 100%;min-width:0}
+    .sort-lbl{flex-basis:100%;margin-bottom:-3px}
+    .sortseg{flex:1 1 100%;min-width:0;display:grid;grid-template-columns:1fr 1fr 1fr;border-radius:12px}
+    .sortbtn{min-width:0;flex:none;justify-content:center;flex-direction:column;gap:5px;white-space:normal;text-align:center;padding:9px 5px;font-size:12.5px;line-height:1.2;min-height:46px}
+    .offer{flex-wrap:wrap}
+    .ck{width:100%;min-height:46px;border-right:none;border-bottom:1px solid var(--line);flex-direction:row;gap:9px;font-size:13.5px;font-weight:700;color:var(--ink-soft)}
+    .ck::after{content:'Επιλογή για σύγκριση'}
+    .offer-open{padding:13px 14px;flex-wrap:wrap}
+    .ava{width:42px;height:42px;font-size:15.5px}
+    .ob-head{gap:10px}
+    .ob-amt-val{font-size:22px}
+    .ob-right{flex-direction:row;align-items:center;width:100%;justify-content:space-between;padding:8px 14px;margin-top:2px;border-top:1px dashed var(--line)}
+    .ob-go{display:none}
+    .ob-sup{font-size:16.5px}
+    .doc{padding:20px 18px 20px;transform:none}
+    .doc-stamp{width:62px;height:62px;font-size:8.5px;top:12px;right:12px}
+    .doc-stamp span{font-size:10px}
+    .dh-name{font-size:19px}
+    .dh-logo{width:40px;height:40px;font-size:16px}
+    .doc-tbl th,.doc-tbl td{font-size:11.5px}
+    .doc-totbox .gr .v{font-size:21px}
+    .xp-tab{font-size:9.5px;padding:5px 11px}
+    .btn-primary,.btn-ghost{min-width:100%;flex:1 1 100%}
+    .btn-copy,.btn-mclose{min-width:100%;flex:1 1 100%}
+    .cmp-col{min-width:154px}
+    .verdict{padding-left:20px}
+    .verdict p{font-size:16.5px}
+    .toast{bottom:12px;left:8px;right:8px;transform:translateY(16px);max-width:none}
+    .toast.show{transform:translateY(0)}
+    .toast .t-msg{font-size:14px}
+    .selbar{padding:12px 14px}
+    .btn-compare{flex:1 1 100%;justify-content:center}
+  }
+  @media(max-width:379px){
+    .catchip{padding:8px 10px;font-size:13px}
+    .mchip{font-size:11.5px;padding:4px 9px}
+    .ob-amt-val{font-size:20px}
+  }
+
+  /* prefers-reduced-motion: no shimmer/pulse/stagger/slide; JS renders instantly */
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{
+      animation-duration:.01ms !important;animation-iteration-count:1 !important;
+      transition-duration:.01ms !important;scroll-behavior:auto !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ TOP BAR ============ -->
+<header class="topbar">
+  <div class="brand">
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>
+    </span>
+    <span class="nm">La<b>Flow</b></span>
+  </div>
+  <div class="feat">
+    <h1>Εισερχόμενες Προσφορές</h1>
+    <p>Οι προσφορές που λαμβάνετε από προμηθευτές — διαβασμένες &amp; ταξινομημένες.</p>
+  </div>
+  <span class="spacer"></span>
+  <span class="demo-tag">Demo · Προσομοίωση AI</span>
+</header>
+
+<main class="page" id="pageMain">
+
+  <!-- ======= LIST VIEW ======= -->
+  <section id="viewList">
+    <p class="intro">
+      <svg class="pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v13H7l-3 3Z"/><path d="M8 9h8M8 12.5h5"/></svg>
+      <span>Οι προσφορές που <b>στέλνετε εσείς</b> στους πελάτες ζουν στον «Δημιουργό Προσφορών». Εδώ είναι το αντίστροφο: οι προσφορές που <span class="sr">λαμβάνετε από προμηθευτές &amp; υπεργολάβους</span>. Το AI τις διαβάζει, τις ταξινομεί και σας αφήνει να τις συγκρίνετε.</span>
+    </p>
+
+    <div class="toolbar">
+      <div class="cat-chips" id="catChips" role="group" aria-label="Φίλτρο κατηγορίας"></div>
+      <div class="filters">
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="search" id="searchInput" placeholder="Αναζήτηση προμηθευτή, θέματος ή έργου…" aria-label="Αναζήτηση προσφορών" autocomplete="off">
+        </div>
+        <div class="sort-wrap">
+          <span class="sort-lbl">Ταξινόμηση</span>
+          <div class="sortseg" role="group" aria-label="Ταξινόμηση προσφορών">
+            <button class="sortbtn" id="sortNewest" type="button" aria-pressed="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>Νεότερες</button>
+            <button class="sortbtn" id="sortAmount" type="button" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20"/><path d="M17 5.5c-1.2-1-3-1.5-5-1.5-3 0-5 1.3-5 3.3 0 4.7 10 2.3 10 7 0 2-2 3.4-5 3.4-2 0-3.9-.6-5-1.6"/></svg>Μεγαλύτερο ποσό</button>
+            <button class="sortbtn" id="sortExpiry" type="button" aria-pressed="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12M6 21h12M7 3c0 4 3.5 5.5 5 7 1.5-1.5 5-3 5-7M7 21c0-4 3.5-5.5 5-7 1.5 1.5 5 3 5 7"/></svg>Λήγουν σύντομα</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="selbar" id="selBar" hidden>
+      <span class="selcount"><span class="sn" id="selN">0</span> επιλεγμένες</span>
+      <span class="selhint" id="selHint"></span>
+      <span class="spacer"></span>
+      <button class="btn-clearsel" id="clearSel" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>Καθαρισμός</button>
+      <button class="btn-compare" id="compareBtn" type="button" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v18M15 3v18M4 8h5M4 14h5M15 6h5M15 12h5"/></svg>
+        <span id="compareLbl">Σύγκριση</span></button>
+    </div>
+
+    <div class="list" id="offerList"></div>
+  </section>
+
+  <!-- ======= DETAIL VIEW ======= -->
+  <section id="viewDetail" class="hidden">
+    <div class="backbar">
+      <button class="btn-back" id="detailBack" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg>Εισερχόμενες</button>
+      <span class="bb-tt"><span class="bb-eyebrow">Φάκελος προσφοράς</span><span class="bb-title">Ανάλυση προσφοράς</span></span>
+    </div>
+    <div class="detail-grid">
+      <div class="doc-wrap" id="docFacsimile"></div>
+      <div class="xpanel" id="xPanel"></div>
+    </div>
+  </section>
+
+  <!-- ======= COMPARE VIEW ======= -->
+  <section id="viewCompare" class="hidden">
+    <div class="backbar">
+      <button class="btn-back" id="compareBack" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg>Εισερχόμενες</button>
+      <span class="bb-tt"><span class="bb-eyebrow">Συγκριτικός πίνακας</span><span class="bb-title" id="cmpTitle">Σύγκριση προσφορών</span></span>
+    </div>
+    <div class="cmp-scroll"><table class="cmp-tbl" id="cmpTable"></table></div>
+    <div class="verdict" id="cmpVerdict"></div>
+  </section>
+
+</main>
+
+<!-- ============ NEGOTIATION MODAL ============ -->
+<div class="overlay" id="overlay"></div>
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="Απάντηση για καλύτερη τιμή" inert>
+  <div class="m-head">
+    <div>
+      <span class="m-kick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/></svg>Απάντηση για καλύτερη τιμή</span>
+      <h2 id="mTitle">Διαπραγμάτευση</h2>
+      <p class="m-sub" id="mSub"></p>
+    </div>
+    <button class="m-close" id="mClose" type="button" aria-label="Κλείσιμο">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="m-body">
+    <div class="m-drafthead">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v13H7l-3 3Z"/><path d="M8 9h8M8 12.5h5"/></svg>
+      Προτεινόμενο μήνυμα<span class="tag">Προσομοίωση AI</span>
+    </div>
+    <div class="draft-box" id="draftBox">
+      <div class="draft-veil" aria-hidden="true"><span class="dv-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/></svg>Το AI συντάσσει το μήνυμα…</span></div>
+      <textarea id="draftText" aria-label="Κείμενο μηνύματος (επεξεργάσιμο)" spellcheck="false"></textarea>
+    </div>
+    <p class="m-editnote"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Χωρίς αναφορά σε ανταγωνιστή. Μπορείτε να το αλλάξετε πριν το στείλετε.</p>
+    <div class="m-actions">
+      <button class="btn btn-copy" id="copyBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+        <span id="copyLbl">Αντιγραφή</span></button>
+      <button class="btn btn-mclose" id="mCloseBtn" type="button">Κλείσιμο</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <svg class="t-ico" id="toastIco" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+  <span class="t-msg" id="toastMsg"></span>
+  <button class="t-undo" id="toastUndo" type="button" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>Αναίρεση</button>
+</div>
+
+<script>
+/* ============================================================
+   LF-05 Εισερχόμενες Προσφορές — functional MVP (offline)
+   REDESIGN PASS: visual/interaction-design upgrade only. Data,
+   computation and persistence *shape* are unchanged from the
+   original build; only the storage key is namespaced (this is a
+   separate file) and the currency helper now emits NBSP so every
+   money string is consistently symbol-after with no mid-value
+   wrap (POLISH P6). Modal focus/hide uses `inert` instead of a
+   focus-conflicting aria-hidden toggle (POLISH P5).
+   ============================================================ */
+'use strict';
+
+/* ---------------- Helpers ---------------- */
+const $  = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad2 = n => String(n).padStart(2,'0');
+const REDUCED = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const STORAGE_KEY = 'laflow-lf05-incoming-offers-redesigned-v1';
+
+const fmt = n => n.toLocaleString('el-GR', { minimumFractionDigits: (Math.round(n*100)%100 ? 2 : 0), maximumFractionDigits: 2 });
+/* symbol-after, non-breaking space — el-GR convention, never wraps mid-value */
+const eur = n => fmt(n) + ' €';
+
+/* real "today" — anchor for received/validity dates so nothing looks stale */
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const dmy = d => pad2(d.getDate())+'/'+pad2(d.getMonth()+1);
+const receivedDate = o => addDays(TODAY, -o.received);
+const expiryDate  = o => addDays(TODAY, o.expires);
+
+const SIG = 'Με εκτίμηση,\nΣωτήρης Παπαδάκης\nOutdoor Design — Αρχιτεκτονική Τοπίου';
+
+/* ---------------- Categories & projects ---------------- */
+const CATS = {
+  fyta:        { name:'Φυτά',         color:'#46603f',
+                 ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>' },
+  ylika:       { name:'Υλικά',        color:'#8a6d2a',
+                 ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>' },
+  mixanimata:  { name:'Μηχανήματα',   color:'#a05526',
+                 ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17h4V5H2v12h3M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>' },
+  ypergolavies:{ name:'Υπεργολαβίες', color:'#2c6e6b',
+                 ico:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2-2 2.6-2.6Z"/></svg>' }
+};
+const CAT_ORDER = ['fyta','ylika','mixanimata','ypergolavies'];
+
+const PROJECTS = [
+  { id:'ekali',       name:'Βίλα Εκάλη' },
+  { id:'marousi',     name:'Εταιρικό campus Μαρούσι' },
+  { id:'kolonaki',    name:'Roof garden Κολωνάκι' },
+  { id:'vouliagmeni', name:'Νέα κατοικία Βουλιαγμένη' },
+  { id:'glyfada',     name:'Αίθριο ξενοδοχείου Γλυφάδα' },
+  { id:'kifisia',     name:'Κήπος Κηφισιά' }
+];
+const projName = id => { const p = PROJECTS.find(x=>x.id===id); return p ? p.name : null; };
+
+/* canonical labels for compare rows (keyed line items) */
+const LINE_LABELS = {
+  elia:'Ελιά καλλωπιστική', kyparissi:'Κυπαρίσσι', pikrodafni:'Πικροδάφνη', lavanta:'Λεβάντα',
+  myrtia:'Μυρτιά', chlootapitas:'Χλοοτάπητας σε ρολό',
+  schist:'Πλάκες σχιστόλιθου Καρύστου', ypovasi:'Λατύπη υπόβασης', kraspeda:'Κράσπεδα',
+  cobbles:'Κυβόλιθοι σκυροδέματος', ammos:'Άμμος έδρασης & τσιμέντο', geoyfasma:'Γεωύφασμα',
+  programmatistis:'Προγραμματιστής άρδευσης', ilektrovanes:'Ηλεκτροβάνες + φρεάτια',
+  stalaktiforoi:'Σταλακτηφόροι & εκτοξευτήρες', solinoseis:'Σωληνώσεις & μικροϋλικά',
+  ekskafi:'Εκσκαφή & διαμόρφωση', baza:'Απομάκρυνση μπάζων', isopedosi:'Ισοπέδωση & συμπύκνωση',
+  ekskafeas:'Μίνι εκσκαφέας', xeiristis:'Χειριστής μηχανήματος', plaka:'Δονητική πλάκα'
+};
+
+/* ---------------- Icons ---------------- */
+const ICO = {
+  spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/></svg>',
+  clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5l3 1.8"/></svg>',
+  euro:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6a6 6 0 1 0 0 12M4 10h7M4 14h7"/></svg>',
+  link:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg>',
+  truck:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17h4V5H2v12h3M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+  star:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2 2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77 5.82 21l1.18-6.86-5-4.87 7.1-1.01Z"/></svg>',
+  archive:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v3H3zM5 10v9h14v-9M9 14h6"/></svg>',
+  mail:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m4 7 8 6 8-6"/></svg>',
+  clip:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>',
+  go:'<svg class="ob-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>'
+};
+
+/* ============================================================
+   SEEDED OFFERS — 9 received offers (domain-credible).
+   Totals verified by hand: lines + deliveryCost + laborCost.
+   Identical to the original build — data, math and QA-verified
+   figures are untouched by this redesign pass.
+   ============================================================ */
+const OFFERS = [
+  /* ---- Φυτά (3) — Βίλα Εκάλη planting lot (primary compare) ---- */
+  { id:'o1', supplier:'Φυτώρια Αττικής', initial:'ΦΑ', accent:'#46603f', category:'fyta',
+    subject:'Προσφορά φυτικού υλικού — κήπος Βίλας Εκάλη', address:'Κορωπί Αττικής · ΑΦΜ 094xxxxxx',
+    received:4, expires:8, linked:'ekali',
+    lines:[
+      { key:'elia', name:'Ελιά καλλωπιστική (Olea europaea), δίκορμη', qty:2, um:'τεμ.', unit:440, total:880 },
+      { key:'kyparissi', name:"Κυπαρίσσι Cupressus sempervirens 'Totem', 2,5 m", qty:8, um:'τεμ.', unit:60, total:480 },
+      { key:'pikrodafni', name:'Πικροδάφνη (Nerium oleander), 10 L', qty:15, um:'τεμ.', unit:14, total:210 },
+      { key:'lavanta', name:'Λεβάντα (Lavandula angustifolia), 3 L', qty:60, um:'τεμ.', unit:4.5, total:270 },
+      { key:'myrtia', name:'Μυρτιά (Myrtus communis), 5 L', qty:25, um:'τεμ.', unit:8, total:200 },
+      { key:'chlootapitas', name:'Χλοοτάπητας σε ρολό (Festuca arundinacea)', qty:150, um:'m²', unit:8.4, total:1260 }
+    ],
+    deliveryCost:180, laborCost:null, deliveryDays:10,
+    deliveryTerms:'Παράδοση επί τόπου εντός 10 εργάσιμων ημερών. Τα μεταφορικά περιλαμβάνονται στην τιμή. Η εργασία φύτευσης δεν περιλαμβάνεται.',
+    conf:{ supplier:0.98, amount:0.96, valid:0.93, delivery:0.9 },
+    summary:'Πλήρης λίστα φυτών με μεταφορικά· δεν περιλαμβάνει εργασία φύτευσης.' },
+
+  { id:'o2', supplier:'Green Garden Center', initial:'GG', accent:'#3f6b4a', category:'fyta',
+    subject:'Προσφορά φυτών — Εκάλη', address:'Παιανία Αττικής · ΑΦΜ 099xxxxxx',
+    received:2, expires:12, linked:null,
+    lines:[
+      { key:'elia', name:'Ελιά καλλωπιστική (Olea europaea), δίκορμη', qty:2, um:'τεμ.', unit:421, total:842 },
+      { key:'kyparissi', name:"Κυπαρίσσι Cupressus sempervirens 'Totem', 2,5 m", qty:8, um:'τεμ.', unit:57, total:456 },
+      { key:'pikrodafni', name:'Πικροδάφνη (Nerium oleander), 10 L', qty:15, um:'τεμ.', unit:13, total:195 },
+      { key:'lavanta', name:'Λεβάντα (Lavandula angustifolia), 3 L', qty:60, um:'τεμ.', unit:4.2, total:252 },
+      { key:'myrtia', name:'Μυρτιά (Myrtus communis), 5 L', qty:25, um:'τεμ.', unit:7.6, total:190 },
+      { key:'chlootapitas', name:'Χλοοτάπητας σε ρολό (Festuca arundinacea)', qty:150, um:'m²', unit:8.1, total:1215 }
+    ],
+    deliveryCost:null, laborCost:null, deliveryDays:14,   /* delivery MISSING */
+    deliveryTerms:null,
+    conf:{ supplier:0.97, amount:0.94, valid:0.9, delivery:null },   /* null => grey «δεν βρέθηκε» */
+    summary:'Χαμηλότερη τιμή φυτών· δεν αναφέρονται μεταφορικά ούτε εργασία φύτευσης.' },
+
+  { id:'o3', supplier:'Φυτώρια Μεσογείων', initial:'ΦΜ', accent:'#7a6a3a', category:'fyta',
+    subject:'Ολοκληρωμένη πρόταση φύτευσης (turnkey) — Βίλα Εκάλη', address:'Μαρκόπουλο Μεσογαίας · ΑΦΜ 084xxxxxx',
+    received:5, expires:6, linked:null,
+    lines:[
+      { key:'elia', name:'Ελιά καλλωπιστική (Olea europaea), δίκορμη', qty:2, um:'τεμ.', unit:429.5, total:859 },
+      { key:'kyparissi', name:"Κυπαρίσσι Cupressus sempervirens 'Totem', 2,5 m", qty:8, um:'τεμ.', unit:59, total:472 },
+      { key:'pikrodafni', name:'Πικροδάφνη (Nerium oleander), 10 L', qty:15, um:'τεμ.', unit:14, total:210 },
+      { key:'lavanta', name:'Λεβάντα (Lavandula angustifolia), 3 L', qty:60, um:'τεμ.', unit:4.4, total:264 },
+      { key:'myrtia', name:'Μυρτιά (Myrtus communis), 5 L', qty:25, um:'τεμ.', unit:7.8, total:195 },
+      { key:'chlootapitas', name:'Χλοοτάπητας σε ρολό (Festuca arundinacea)', qty:150, um:'m²', unit:6, total:900 }
+    ],
+    deliveryCost:200, laborCost:520, deliveryDays:7,
+    deliveryTerms:'Μεταφορικά και πλήρης εργασία φύτευσης περιλαμβάνονται (turnkey). Παράδοση κήπου σε λειτουργία.',
+    conf:{ supplier:0.98, amount:0.95, valid:0.72, delivery:0.92 },   /* validity amber */
+    summary:'Turnkey — περιλαμβάνει μεταφορικά και εργασία φύτευσης (520 €).' },
+
+  /* ---- Υλικά (2) — campus Μαρούσι paving (compare) ---- */
+  { id:'o4', supplier:'Λατομεία Καρύστου ΑΕ', initial:'ΛΚ', accent:'#5b6b7a', category:'ylika',
+    subject:'Προσφορά φυσικής πέτρας Καρύστου — πλατεία campus', address:'Κάρυστος Εύβοιας · ΑΦΜ 095xxxxxx',
+    received:6, expires:20, linked:'marousi',
+    lines:[
+      { key:'schist', name:'Πλάκες σχιστόλιθου Καρύστου (γκρι-πράσινο), ακανόνιστες', qty:320, um:'m²', unit:38, total:12160 },
+      { key:'ypovasi', name:'Λατύπη υπόβασης 0-40', qty:40, um:'m³', unit:22, total:880 },
+      { key:'kraspeda', name:'Κράσπεδα φυσικής πέτρας', qty:85, um:'μ.μ.', unit:18, total:1530 }
+    ],
+    deliveryCost:650, laborCost:null, deliveryDays:12,
+    deliveryTerms:'Παράδοση από Κάρυστο· τα μεταφορικά περιλαμβάνονται. Χωρίς εργασία τοποθέτησης.',
+    conf:{ supplier:0.97, amount:0.95, valid:0.9, delivery:0.9 },
+    summary:'Φυσική πέτρα Καρύστου, premium αισθητική· χωρίς εργασία τοποθέτησης.' },
+
+  { id:'o5', supplier:'Δομικά Υλικά Παυλίδης', initial:'ΔΠ', accent:'#8a6d2a', category:'ylika',
+    subject:'Προσφορά κυβόλιθων & υλικών — campus Μαρούσι', address:'Αχαρναί Αττικής · ΑΦΜ 081xxxxxx',
+    received:3, expires:15, linked:null,
+    lines:[
+      { key:'cobbles', name:'Κυβόλιθοι σκυροδέματος, σειρά Antico', qty:320, um:'m²', unit:26, total:8320 },
+      { key:'ammos', name:'Άμμος έδρασης & τσιμέντο', qty:320, um:'m²', unit:4.5, total:1440 },
+      { key:'kraspeda', name:'Κράσπεδα σκυροδέματος', qty:85, um:'μ.μ.', unit:9, total:765 },
+      { key:'geoyfasma', name:'Γεωύφασμα διαχωρισμού', qty:320, um:'m²', unit:1.8, total:576 }
+    ],
+    deliveryCost:420, laborCost:null, deliveryDays:8,
+    deliveryTerms:'Παράδοση εντός 8 ημερών· τα μεταφορικά περιλαμβάνονται.',
+    conf:{ supplier:0.98, amount:0.96, valid:0.91, delivery:0.9 },
+    summary:'Κυβόλιθοι σκυροδέματος — οικονομικότερη λύση πλακόστρωσης.' },
+
+  /* ---- Υπεργολαβίες (3) — 2 irrigation (compare) + 1 earthworks (amber amount) ---- */
+  { id:'o6', supplier:'Υδροτεχνική ΕΠΕ', initial:'ΥΤ', accent:'#2c6e6b', category:'ypergolavies',
+    subject:'Προσφορά εγκατάστασης αυτόματου ποτίσματος — Βίλα Εκάλη', address:'Γέρακας Αττικής · ΑΦΜ 998xxxxxx',
+    received:1, expires:4, linked:'ekali',
+    lines:[
+      { key:'programmatistis', name:'Προγραμματιστής άρδευσης 8 ζωνών', qty:1, um:'τεμ.', unit:280, total:280 },
+      { key:'ilektrovanes', name:'Ηλεκτροβάνες + φρεάτια', qty:8, um:'τεμ.', unit:65, total:520 },
+      { key:'stalaktiforoi', name:'Σταλακτηφόροι & εκτοξευτήρες (600 m²)', qty:1, um:'κατ. αποκοπή', unit:1920, total:1920 },
+      { key:'solinoseis', name:'Σωληνώσεις τροφοδοσίας & μικροϋλικά', qty:1, um:'κατ. αποκοπή', unit:640, total:640 }
+    ],
+    deliveryCost:140, laborCost:1150, deliveryDays:6,
+    deliveryTerms:'Πλήρης εγκατάσταση, δοκιμές και ρύθμιση. Εγγύηση καλής λειτουργίας 2 έτη.',
+    conf:{ supplier:0.97, amount:0.96, valid:0.92, delivery:0.9 },
+    summary:'8 ζώνες, πλήρης εγκατάσταση με εγγύηση 2 ετών.' },
+
+  { id:'o7', supplier:'Άρδευση Θεοδώρου', initial:'ΑΘ', accent:'#3f6b7a', category:'ypergolavies',
+    subject:'Προσφορά αυτόματου συστήματος ποτίσματος — Εκάλη', address:'Παλλήνη Αττικής · ΑΦΜ 076xxxxxx',
+    received:2, expires:9, linked:null,
+    lines:[
+      { key:'programmatistis', name:'Προγραμματιστής άρδευσης WiFi 6 ζωνών', qty:1, um:'τεμ.', unit:340, total:340 },
+      { key:'ilektrovanes', name:'Ηλεκτροβάνες + φρεάτια', qty:6, um:'τεμ.', unit:70, total:420 },
+      { key:'stalaktiforoi', name:'Σταλακτηφόροι & εκτοξευτήρες (600 m²)', qty:1, um:'κατ. αποκοπή', unit:2160, total:2160 },
+      { key:'solinoseis', name:'Σωληνώσεις τροφοδοσίας & μικροϋλικά', qty:1, um:'κατ. αποκοπή', unit:580, total:580 }
+    ],
+    deliveryCost:120, laborCost:980, deliveryDays:8,
+    deliveryTerms:'Εγκατάσταση & ρύθμιση. Εγγύηση καλής λειτουργίας 1 έτος.',
+    conf:{ supplier:0.96, amount:0.95, valid:0.9, delivery:0.9 },
+    summary:'6 ζώνες WiFi, χαμηλότερη εργασία εγκατάστασης.' },
+
+  { id:'o8', supplier:'Χωματουργικές Εργασίες Γεωργίου', initial:'ΧΓ', accent:'#7a5a44', category:'ypergolavies',
+    subject:'Προσφορά χωματουργικών & διαμόρφωσης εδάφους — Εκάλη', address:'Σπάτα Αττικής · ΑΦΜ 067xxxxxx',
+    received:9, expires:11, linked:null,
+    lines:[
+      { key:'ekskafi', name:'Εκσκαφή & διαμόρφωση εδάφους', qty:180, um:'m³', unit:9, total:1620 },
+      { key:'baza', name:'Απομάκρυνση μπάζων', qty:12, um:'δρομ.', unit:55, total:660 },
+      { key:'isopedosi', name:'Ισοπέδωση & συμπύκνωση', qty:1, um:'κατ. αποκοπή', unit:200, total:200 }
+    ],
+    deliveryCost:null, laborCost:null, deliveryDays:5,
+    deliveryTerms:'Με δικά μας μηχανήματα· η αμοιβή περιλαμβάνει χειριστή. Καύσιμα εκτός.',
+    extractedAmount:2400,   /* AI misread the handwritten total; real total = 2480 */
+    conf:{ supplier:0.9, amount:0.62, valid:0.88, delivery:0.85 },   /* amount amber */
+    summary:'Χωματουργικά με μηχανήματα· το συνολικό ποσό χρειάζεται επιβεβαίωση.' },
+
+  /* ---- Μηχανήματα (1) — SINGLETON (compare never surfaces alone) ---- */
+  { id:'o9', supplier:'Κ. Δημητρίου — Ενοικιάσεις Μηχανημάτων', initial:'ΚΔ', accent:'#a05526', category:'mixanimata',
+    subject:'Προσφορά ενοικίασης μηχανημάτων — έργο Μαρούσι', address:'Ασπρόπυργος Αττικής · ΑΦΜ 105xxxxxx',
+    received:7, expires:30, linked:null,
+    lines:[
+      { key:'ekskafeas', name:'Μίνι εκσκαφέας 3,5 t', qty:5, um:'ημέρες', unit:160, total:800 },
+      { key:'xeiristis', name:'Χειριστής μηχανήματος', qty:5, um:'ημέρες', unit:140, total:700 },
+      { key:'plaka', name:'Δονητική πλάκα συμπύκνωσης', qty:3, um:'ημέρες', unit:45, total:135 }
+    ],
+    deliveryCost:180, laborCost:null, deliveryDays:2,
+    deliveryTerms:'Μεταφορά μηχανήματος με πλατφόρμα (περιλαμβάνεται). Καύσιμα εκτός.',
+    conf:{ supplier:0.95, amount:0.95, valid:0.9, delivery:0.9 },
+    summary:'Ενοικίαση εκσκαφέα με χειριστή, 5 ημέρες.' }
+];
+const byId = id => OFFERS.find(o => o.id === id);
+const linesSum = o => o.lines.reduce((s,l)=>s+l.total, 0);
+
+/* ============================================================
+   STATE + persistence
+   ============================================================ */
+const state = {
+  category:'all',       /* 'all' | cat key | 'archive' */
+  search:'',
+  sort:'newest',        /* 'newest' | 'amount' | 'expiry' */
+  selection:new Set(),
+  view:'list',          /* 'list' | 'detail' | 'compare' */
+  detailId:null,
+  compareIds:[]
+};
+const persist = {
+  categoryOverride:{},  /* id -> cat key */
+  linked:{},            /* id -> projectId | null */
+  archived:{},          /* id -> true */
+  preferred:{},         /* id -> true */
+  corrected:{}          /* id -> { amount, deliveryCost, validConfirmed } */
+};
+const extracted = new Set();   /* offers whose extraction theater already played this session */
+const drafted   = new Set();   /* offers whose negotiation draft theater already played */
+
+function save(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({ v:1, ...persist })); }catch(e){}
+}
+function loadState(){
+  let d = null;
+  try{ const raw = localStorage.getItem(STORAGE_KEY); if(raw) d = JSON.parse(raw); }catch(e){ d = null; }
+  if(!d || d.v !== 1) return;
+  if(d.categoryOverride) Object.keys(d.categoryOverride).forEach(id => { if(byId(id) && CATS[d.categoryOverride[id]]) persist.categoryOverride[id] = d.categoryOverride[id]; });
+  if(d.linked) Object.keys(d.linked).forEach(id => { if(byId(id)) persist.linked[id] = d.linked[id]; });
+  if(d.archived) Object.keys(d.archived).forEach(id => { if(byId(id) && d.archived[id]) persist.archived[id] = true; });
+  if(d.preferred) Object.keys(d.preferred).forEach(id => { if(byId(id) && d.preferred[id]) persist.preferred[id] = true; });
+  if(d.corrected) Object.keys(d.corrected).forEach(id => { if(byId(id)) persist.corrected[id] = d.corrected[id]; });
+}
+
+/* ---------------- Derived accessors ---------------- */
+const catOf   = o => persist.categoryOverride[o.id] || o.category;
+const linkOf  = o => (o.id in persist.linked) ? persist.linked[o.id] : o.linked;
+const isArch  = o => !!persist.archived[o.id];
+const isPref  = o => !!persist.preferred[o.id];
+const cor     = o => persist.corrected[o.id] || {};
+
+/* the extracted/displayed total (amber offers start from the AI misread) */
+function amountOf(o){
+  const c = cor(o);
+  if(c.amount != null) return c.amount;
+  if(o.extractedAmount != null) return o.extractedAmount;
+  return linesSum(o) + (o.deliveryCost||0) + (o.laborCost||0);
+}
+/* the "true" total on the facsimile (what a correction should target) */
+const docTotalOf = o => linesSum(o) + (o.deliveryCost||0) + (o.laborCost||0);
+function deliveryOf(o){ const c = cor(o); return c.deliveryCost != null ? c.deliveryCost : o.deliveryCost; }
+const amountIsAmber = o => (o.conf.amount != null && o.conf.amount < 0.9) && cor(o).amount == null;
+
+/* ============================================================
+   VIEW SWITCH
+   ============================================================ */
+function show(view){
+  state.view = view;
+  $('#viewList').classList.toggle('hidden', view!=='list');
+  $('#viewDetail').classList.toggle('hidden', view!=='detail');
+  $('#viewCompare').classList.toggle('hidden', view!=='compare');
+  window.scrollTo({ top:0, behavior: REDUCED() ? 'auto' : 'smooth' });
+}
+
+/* ============================================================
+   LIST VIEW
+   ============================================================ */
+function categoryCounts(){
+  const counts = { all:0 };
+  CAT_ORDER.forEach(k => counts[k]=0);
+  let arch = 0;
+  OFFERS.forEach(o => {
+    if(isArch(o)){ arch++; return; }
+    counts.all++; counts[catOf(o)]++;
+  });
+  counts.archive = arch;
+  return counts;
+}
+function renderCatChips(){
+  const c = categoryCounts();
+  const wrap = $('#catChips');
+  let html = '<button class="catchip" type="button" data-cat="all" aria-pressed="'+(state.category==='all')+'">'+
+    '<span class="cn">'+c.all+'</span>Όλες</button>';
+  html += CAT_ORDER.map(k =>
+    '<button class="catchip" type="button" data-cat="'+k+'" aria-pressed="'+(state.category===k)+'" style="--cc:'+CATS[k].color+'">'+
+      '<span class="ci" aria-hidden="true">'+CATS[k].ico+'</span>'+esc(CATS[k].name)+
+      '<span class="cn">'+c[k]+'</span></button>'
+  ).join('');
+  html += '<button class="catchip arch" type="button" data-cat="archive" aria-pressed="'+(state.category==='archive')+'" style="--cc:#7d8a80">'+
+    ICO.archive.replace('<svg','<span class="ci" aria-hidden="true"><svg')+'</span>'+
+    'Αρχείο<span class="cn">'+c.archive+'</span></button>';
+  wrap.innerHTML = html;
+}
+
+function visibleOffers(){
+  const q = state.search.trim().toLowerCase();
+  let arr = OFFERS.filter(o => {
+    if(state.category==='archive') return isArch(o);
+    if(isArch(o)) return false;
+    if(state.category!=='all' && catOf(o)!==state.category) return false;
+    if(q){
+      const hay = (o.supplier+' '+o.subject+' '+(projName(linkOf(o))||'')).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  if(state.sort==='amount')      arr.sort((a,b)=> amountOf(b)-amountOf(a) || a.received-b.received);
+  else if(state.sort==='expiry') arr.sort((a,b)=> a.expires-b.expires || a.received-b.received);
+  else                           arr.sort((a,b)=> a.received-b.received || amountOf(b)-amountOf(a));
+  return arr;
+}
+
+function offerHTML(o){
+  const cat = catOf(o);
+  const sel = state.selection.has(o.id);
+  const amber = amountIsAmber(o);
+  const link = linkOf(o);
+  const delivAdded = cor(o).deliveryCost != null && o.deliveryCost == null;
+  const arch = state.category==='archive';
+
+  let chips = '';
+  chips += '<span class="mchip">'+ICO.clock+'Ισχύς έως '+esc(dmy(expiryDate(o)))+'</span>';
+  if(link) chips += '<span class="mchip proj">'+ICO.link+esc(projName(link))+'</span>';
+  if(delivAdded) chips += '<span class="mchip added">'+ICO.truck+'Μεταφορικά '+esc(eur(deliveryOf(o)))+'</span>';
+
+  const prefBadge = isPref(o) ? '<span class="pref-badge">'+ICO.star+'Προτιμώμενη</span>' : '';
+
+  const ckHtml = arch ? '' :
+    '<button class="ck" type="button" role="checkbox" aria-checked="'+sel+'" data-ck="'+o.id+'" aria-label="Επιλογή '+esc(o.supplier)+' για σύγκριση">'+
+      '<span class="box" aria-hidden="true">'+ICO.check+'</span></button>';
+
+  const rightHtml = arch
+    ? '<span class="ob-right"><span class="ob-date">Ελήφθη '+esc(dmy(receivedDate(o)))+'</span>'+
+        '<span class="mchip" style="border-color:rgba(125,138,128,.5);color:#4d5b50">Αρχειοθετημένη</span></span>'
+    : '<span class="ob-right"><span class="ob-date">Ελήφθη '+esc(dmy(receivedDate(o)))+'</span>'+ICO.go+'</span>';
+
+  const amtBlock = '<span class="ob-amt">'+
+      '<span class="ob-amt-lbl">Ποσό</span>'+
+      '<span class="ob-amt-val'+(amber?' amber':'')+'">'+esc(eur(amountOf(o)))+'</span>'+
+      (amber?'<span class="ob-amt-flag">αβέβαιο</span>':'')+
+    '</span>';
+
+  return '<div class="offer'+(sel?' sel':'')+'" data-id="'+o.id+'" style="--a:'+o.accent+'">'+
+    ckHtml +
+    '<button class="offer-open" type="button" data-open="'+o.id+'">'+
+      '<span class="ava" aria-hidden="true">'+esc(o.initial)+'</span>'+
+      '<span class="ob-body">'+
+        '<span class="ob-head">'+
+          '<span class="ob-supwrap"><span class="ob-sup">'+esc(o.supplier)+'</span>'+
+            '<span class="ob-tagrow"><span class="tag-flag" style="--cc:'+CATS[cat].color+'">'+esc(CATS[cat].name)+'</span>'+ prefBadge +'</span></span>'+
+          amtBlock +
+        '</span>'+
+        '<span class="ob-subj">'+esc(o.subject)+'</span>'+
+        '<span class="ob-chips">'+chips+'</span>'+
+        '<span class="ob-sum">'+ICO.spark+'<span>'+esc(o.summary)+'</span></span>'+
+      '</span>'+ rightHtml +
+    '</button>'+
+  '</div>';
+}
+
+function renderList(){
+  const arr = visibleOffers();
+  const el = $('#offerList');
+  if(!arr.length){
+    let msg;
+    if(state.category==='archive') msg = '<b>Το αρχείο είναι άδειο.</b> Όσες προσφορές αρχειοθετείτε θα εμφανίζονται εδώ.';
+    else if(state.search) msg = '<b>Καμία προσφορά</b> δεν ταιριάζει με την αναζήτηση «'+esc(state.search)+'».';
+    else msg = '<b>Καμία προσφορά σε αυτή την κατηγορία.</b>';
+    el.innerHTML = '<div class="empty"><span class="em-ico" aria-hidden="true">'+ICO.mail+'</span><span>'+msg+'</span></div>';
+  } else {
+    el.innerHTML = arr.map(offerHTML).join('');
+  }
+  renderCatChips();
+  renderSelBar();
+}
+
+/* ---------------- Selection / compare eligibility ---------------- */
+function selectedOffers(){ return [...state.selection].map(byId).filter(Boolean).filter(o=>!isArch(o)); }
+function renderSelBar(){
+  const sel = selectedOffers();
+  const bar = $('#selBar');
+  if(sel.length === 0){ bar.hidden = true; return; }
+  bar.hidden = false;
+  $('#selN').textContent = sel.length;
+  const cats = new Set(sel.map(catOf));
+  const btn = $('#compareBtn');
+  const hint = $('#selHint');
+  if(sel.length >= 2 && cats.size === 1){
+    btn.disabled = false;
+    $('#compareLbl').textContent = 'Σύγκριση ('+sel.length+')';
+    hint.textContent = 'Έτοιμες για σύγκριση — κατηγορία «'+CATS[[...cats][0]].name+'».';
+  } else {
+    btn.disabled = true;
+    $('#compareLbl').textContent = 'Σύγκριση';
+    if(cats.size > 1) hint.textContent = 'Επιλέξτε προσφορές ΙΔΙΑΣ κατηγορίας για σύγκριση.';
+    else hint.textContent = 'Επιλέξτε τουλάχιστον 2 προσφορές ίδιας κατηγορίας.';
+  }
+}
+function toggleSelect(id){
+  const o = byId(id); if(!o || isArch(o)) return;
+  if(state.selection.has(id)) state.selection.delete(id);
+  else state.selection.add(id);
+  const el = document.querySelector('.offer[data-id="'+id+'"]');
+  if(el){
+    el.classList.toggle('sel', state.selection.has(id));
+    const ck = el.querySelector('.ck'); if(ck) ck.setAttribute('aria-checked', String(state.selection.has(id)));
+  }
+  renderSelBar();
+}
+function clearSelection(){
+  state.selection.clear();
+  $$('.offer.sel').forEach(el => { el.classList.remove('sel'); const ck=el.querySelector('.ck'); if(ck) ck.setAttribute('aria-checked','false'); });
+  renderSelBar();
+}
+
+/* ============================================================
+   DETAIL VIEW — document facsimile + extraction panel
+   ============================================================ */
+function docFacsimileHTML(o){
+  const rows = o.lines.map(l =>
+    '<tr><td class="nm">'+esc(l.name)+'</td>'+
+    '<td class="q">'+esc(fmt(l.qty))+' '+esc(l.um)+'</td>'+
+    '<td class="q">'+esc(eur(l.unit))+'</td>'+
+    '<td class="r">'+esc(eur(l.total))+'</td></tr>'
+  ).join('');
+  const sub = linesSum(o);
+  /* The facsimile is the SUPPLIER'S original received document: render only what
+     the supplier actually stated (raw o.deliveryCost). A human's add-estimate lives
+     in the extraction panel / inbox chip / compare table — never rewrites the paper.
+     Reading raw here keeps the document internally consistent with docTotalOf(). */
+  const deliv = o.deliveryCost;
+  let extraRows = '';
+  if(deliv != null) extraRows += '<div class="r"><span>Μεταφορικά &amp; παράδοση</span><span class="v">'+esc(eur(deliv))+'</span></div>';
+  if(o.laborCost != null) extraRows += '<div class="r"><span>Εργασία</span><span class="v">'+esc(eur(o.laborCost))+'</span></div>';
+  const total = docTotalOf(o);
+
+  return '<div class="doc" style="--dc:'+o.accent+'">'+
+    '<div class="doc-stamp" aria-hidden="true">Ελήφθη<span>'+esc(dmy(receivedDate(o)))+'</span></div>'+
+    '<div class="doc-head" data-region="header">'+
+      '<div class="dh-brand"><span class="dh-logo" aria-hidden="true">'+esc(o.initial)+'</span>'+
+        '<div><div class="dh-name">'+esc(o.supplier)+'</div><div class="dh-tag">Προσφορά προμηθευτή</div></div></div>'+
+      '<div class="dh-meta"><div class="doc-k">ΠΡΟΣΦΟΡΑ</div>'+
+        '<div>Ημ/νία: <b>'+esc(dmy(receivedDate(o)))+'</b></div>'+
+        '<div>Αρ.: <b>'+esc(o.id.toUpperCase())+'-'+esc(String(o.received).padStart(3,'0'))+'</b></div>'+
+        '<div>'+esc(o.address)+'</div></div>'+
+    '</div>'+
+    '<div class="doc-title" data-region="subject"><div class="kk">Θέμα</div><h3>'+esc(o.subject)+'</h3>'+
+      '<div class="doc-recip">Προς: <b>Outdoor Design — Σ. Παπαδάκης</b></div></div>'+
+    '<table class="doc-tbl" data-region="table"><thead><tr>'+
+      '<th>Περιγραφή</th><th class="r">Ποσότητα</th><th class="r">Τιμή μον.</th><th class="r">Σύνολο</th>'+
+      '</tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div class="doc-totbox"><div class="b">'+
+      '<div class="r"><span>Καθαρή αξία ειδών</span><span class="v">'+esc(eur(sub))+'</span></div>'+
+      extraRows +
+      '<div class="gr" data-region="total"><span class="k">Σύνολο</span><span class="v">'+esc(eur(total))+'</span></div>'+
+    '</div></div>'+
+    '<div class="doc-terms" data-region="terms"><b>Όροι:</b> '+esc(o.deliveryTerms || 'Δεν αναφέρονται όροι παράδοσης ή μεταφορικά στο έγγραφο.')+'</div>'+
+    '<div class="doc-valid" data-region="validity">Ισχύς προσφοράς έως: <b>'+esc(dmy(expiryDate(o)))+'</b></div>'+
+    '<div class="doc-foot"><span>'+esc(o.supplier)+'</span><span>Οι τιμές δεν περιλαμβάνουν ΦΠΑ 24%.</span></div>'+
+  '</div>';
+}
+
+/* confidence — ring gauge (not a flat pill): colour + icon-free numeral + text label,
+   so meaning never rests on colour alone. Never alarm-red (uncertainty != error). */
+function confBadge(c){
+  if(c == null) return '<span class="conf miss"><span class="conf-ring" aria-hidden="true"><b>—</b></span><span class="conf-tx">Δεν βρέθηκε</span></span>';
+  const pct = Math.round(c*100);
+  const cls = c >= 0.9 ? 'ok' : 'warn';
+  const tx = c >= 0.9 ? 'Σίγουρο' : 'Αβέβαιο';
+  return '<span class="conf '+cls+'"><span class="conf-ring" style="--pct:'+pct+'" aria-hidden="true"><b>'+pct+'%</b></span><span class="conf-tx">'+tx+'</span></span>';
+}
+
+function extractionHTML(o){
+  const cat = catOf(o);
+  const c = o.conf;
+  const amber = amountIsAmber(o);
+  const amountCorrected = cor(o).amount != null;
+  const deliv = deliveryOf(o);
+  const delivMissing = o.conf.delivery == null && cor(o).deliveryCost == null;
+  const delivAddedByUser = o.deliveryCost == null && cor(o).deliveryCost != null;
+  const validConfirmed = !!cor(o).validConfirmed;
+  const validAmber = c.valid != null && c.valid < 0.9 && !validConfirmed;
+
+  /* ---- category dropdown ---- */
+  const catOpts = CAT_ORDER.map(k => '<option value="'+k+'"'+(k===cat?' selected':'')+'>'+esc(CATS[k].name)+'</option>').join('');
+
+  /* ---- fields (each staggers in on first open) ---- */
+  let fields = '';
+
+  fields += '<div class="xfield" data-region="header"><div class="xf-top"><span class="xf-k">Προμηθευτής</span>'+confBadge(c.supplier)+'</div>'+
+    '<div class="xf-v">'+esc(o.supplier)+'</div></div>';
+
+  fields += '<div class="xfield" data-region="subject"><div class="xf-top"><span class="xf-k">Κατηγορία</span>'+confBadge(0.94)+'</div>'+
+    '<div class="xf-edit"><select class="xf-select" id="catSelect" aria-label="Κατηγορία προσφοράς">'+catOpts+'</select></div>'+
+    '<div class="xf-hint">'+ICO.spark+'<span>Αλλάξτε την κατηγορία — η προσφορά μεταφέρεται αμέσως στο σωστό «κουτί».</span></div></div>';
+
+  /* amount — editable when amber */
+  fields += '<div class="xfield" data-region="total"><div class="xf-top"><span class="xf-k">Συνολικό ποσό</span>'+
+      (amountCorrected ? '<span class="conf fixed"><span class="conf-ring" aria-hidden="true"><b>'+ICO.check+'</b></span><span class="conf-tx">διορθώθηκε</span></span>' : confBadge(c.amount))+'</div>'+
+    '<div class="xf-v big">'+esc(eur(amountOf(o)))+'</div>';
+  if(amber){
+    fields += '<div class="xf-note">Το ποσό διαβάστηκε με χαμηλή βεβαιότητα (χειρόγραφο σύνολο). Ελέγξτε το έγγραφο και διορθώστε.</div>'+
+      '<div class="xf-edit"><input class="xf-input" id="amountInput" type="number" inputmode="numeric" value="'+amountOf(o)+'" aria-label="Διόρθωση συνολικού ποσού">'+
+      '<button class="xf-btn" id="amountSave" type="button">'+ICO.check+'Διόρθωση</button></div>';
+  } else if(amountCorrected){
+    fields += '<div class="xf-hint xf-fixed">'+ICO.check+'<span>Διορθώθηκε από εσάς — ενημερώθηκε και στη λίστα.</span></div>';
+  }
+  fields += '</div>';
+
+  /* validity — confirm when amber */
+  fields += '<div class="xfield" data-region="validity"><div class="xf-top"><span class="xf-k">Ισχύς έως</span>'+
+      (validConfirmed ? '<span class="conf fixed"><span class="conf-ring" aria-hidden="true"><b>'+ICO.check+'</b></span><span class="conf-tx">επιβεβαιώθηκε</span></span>' : confBadge(c.valid))+'</div>'+
+    '<div class="xf-v">'+esc(dmy(expiryDate(o)))+'</div>';
+  if(validAmber){
+    fields += '<div class="xf-note">Η ημερομηνία λήξης ήταν δυσανάγνωστη. Επιβεβαιώστε την αν είναι σωστή.</div>'+
+      '<div class="xf-edit"><button class="xf-btn" id="validConfirm" type="button">'+ICO.check+'Επιβεβαίωση</button></div>';
+  }
+  fields += '</div>';
+
+  /* delivery / terms — add when missing */
+  fields += '<div class="xfield" data-region="terms"><div class="xf-top"><span class="xf-k">Όροι παράδοσης &amp; μεταφορικά</span>'+
+      (delivMissing ? confBadge(null) : (delivAddedByUser ? '<span class="conf fixed"><span class="conf-ring" aria-hidden="true"><b>'+ICO.check+'</b></span><span class="conf-tx">προστέθηκε</span></span>' : confBadge(c.delivery)))+'</div>';
+  if(delivMissing){
+    fields += '<div class="xf-v missing">Δεν αναφέρονται μεταφορικά στο έγγραφο.</div>'+
+      '<div class="xf-note">Προσθέστε εκτίμηση μεταφορικών ώστε η σύγκριση να είναι δίκαιη.</div>'+
+      '<div class="xf-edit"><input class="xf-input" id="delivInput" type="number" inputmode="numeric" placeholder="π.χ. 190" aria-label="Προσθήκη μεταφορικών (€)">'+
+      '<button class="xf-btn" id="delivSave" type="button">'+ICO.check+'Προσθήκη</button></div>';
+  } else {
+    fields += '<div class="xf-v" style="font-weight:600;font-size:15px">'+esc(o.deliveryTerms || '—')+'</div>'+
+      (deliv!=null ? '<div class="xf-note">Μεταφορικά: <b>'+esc(eur(deliv))+'</b>'+(delivAddedByUser?' (προστέθηκε από εσάς)':'')+'</div>' : '');
+  }
+  fields += '</div>';
+
+  /* line items */
+  const lineList = o.lines.map(l =>
+    '<div class="xf-line"><span class="ln-n">'+esc(l.name)+'</span><span class="ln-v">'+esc(eur(l.total))+'</span></div>'
+  ).join('');
+  fields += '<div class="xfield" data-region="table"><div class="xf-top"><span class="xf-k">Γραμμές κόστους ('+o.lines.length+')</span>'+confBadge(0.93)+'</div>'+
+    '<div class="xf-lines">'+lineList+'</div></div>';
+
+  /* ---- actions ---- */
+  const link = linkOf(o);
+  const projOpts = '<option value="">— Χωρίς σύνδεση —</option>' +
+    PROJECTS.map(p => '<option value="'+p.id+'"'+(p.id===link?' selected':'')+'>'+esc(p.name)+'</option>').join('');
+
+  const actions =
+    '<div class="xactions">'+
+      '<div class="xa-field"><label for="projSelect">Σύνδεση με έργο</label>'+
+        '<select class="xf-select" id="projSelect">'+projOpts+'</select></div>'+
+      '<div class="xa-row">'+
+        '<button class="btn btn-primary" id="negoBtn" type="button">'+ICO.spark+'Απάντηση για καλύτερη τιμή</button>'+
+      '</div>'+
+      '<div class="xa-row">'+
+        '<button class="btn btn-ghost danger" id="archiveBtn" type="button">'+ICO.archive+'Αρχειοθέτηση</button>'+
+      '</div>'+
+    '</div>';
+
+  return '<span class="xp-tab" aria-hidden="true">AI dossier</span>'+
+    '<div class="xp-head">'+
+      '<span class="xp-kick">'+ICO.spark+'Ανάγνωση εγγράφου από AI</span>'+
+      '<h2>Εξαγωγή στοιχείων</h2>'+
+      '<div class="xp-status" id="xpStatus"><span class="dotpulse"></span><span id="xpStatusTxt">Ανάλυση εγγράφου…</span></div>'+
+    '</div>'+
+    '<div class="xp-legend" aria-hidden="true">'+
+      '<span class="li"><span class="cb green"></span>Βεβαιότητα ≥90%</span>'+
+      '<span class="li"><span class="cb amber"></span>Αβέβαιο</span>'+
+      '<span class="li"><span class="cb grey"></span>Δεν βρέθηκε</span>'+
+    '</div>'+
+    '<div class="xfields" id="xFields">'+fields+'</div>'+
+    actions;
+}
+
+let detailToken = 0;
+function openDetail(id){
+  const o = byId(id); if(!o) return;
+  state.detailId = id;
+  $('#docFacsimile').innerHTML = docFacsimileHTML(o);   /* stable wrapper keeps its id across opens */
+  $('#xPanel').innerHTML = extractionHTML(o);
+  show('detail');
+  runExtractionTheater(o);
+  wireDetail(o);
+}
+
+function runExtractionTheater(o){
+  const my = ++detailToken;
+  const fields = $$('#xFields .xfield');
+  const status = $('#xpStatus'), statusTxt = $('#xpStatusTxt');
+  const doc = document.querySelector('.doc');
+  const finishStatus = () => { if(status){ status.classList.add('done'); statusTxt.textContent = 'Ολοκληρώθηκε — '+fields.length+' πεδία εξήχθησαν.'; } };
+
+  if(extracted.has(o.id) || REDUCED()){
+    fields.forEach(f => f.classList.add('in'));
+    finishStatus();
+    extracted.add(o.id);
+    return;
+  }
+  fields.forEach((f,i) => {
+    setTimeout(() => {
+      if(my !== detailToken) return;
+      f.classList.add('in');
+      const region = f.dataset.region;
+      if(region && doc){
+        const r = doc.querySelector('[data-region="'+region+'"]');
+        if(r){ r.classList.add('rgx-hl'); setTimeout(()=>r.classList.remove('rgx-hl'), 620); }
+      }
+      if(i === fields.length-1) finishStatus();
+    }, 260 + i*300);
+  });
+  setTimeout(() => { if(my===detailToken) extracted.add(o.id); }, 260 + fields.length*300 + 80);
+}
+
+function wireDetail(o){
+  const panel = $('#xPanel');
+  /* category re-bucket */
+  const catSel = panel.querySelector('#catSelect');
+  if(catSel) catSel.addEventListener('change', e => {
+    persist.categoryOverride[o.id] = e.target.value;
+    if(e.target.value === o.category) delete persist.categoryOverride[o.id];
+    save();
+    renderList();
+    toast(o.supplier+': κατηγορία → «'+CATS[catOf(o)].name+'».', 'check');
+  });
+  /* project link */
+  const projSel = panel.querySelector('#projSelect');
+  if(projSel) projSel.addEventListener('change', e => {
+    persist.linked[o.id] = e.target.value || null;
+    save(); renderList();
+    toast(e.target.value ? o.supplier+': συνδέθηκε με «'+projName(e.target.value)+'».' : o.supplier+': αφαιρέθηκε η σύνδεση έργου.', 'check');
+  });
+  /* amount correction (amber) */
+  const amtSave = panel.querySelector('#amountSave');
+  if(amtSave) amtSave.addEventListener('click', () => {
+    const inp = panel.querySelector('#amountInput');
+    const v = parseFloat(inp.value);
+    if(isNaN(v) || v <= 0){ toast('Δώστε έγκυρο ποσό.', 'info'); return; }
+    persist.corrected[o.id] = { ...cor(o), amount:v };
+    save();
+    $('#xPanel').innerHTML = extractionHTML(o); $$('#xFields .xfield').forEach(f=>f.classList.add('in')); $('#xpStatus').classList.add('done'); $('#xpStatusTxt').textContent='Ολοκληρώθηκε.';
+    wireDetail(o); renderList();
+    toast(o.supplier+': το ποσό διορθώθηκε σε '+eur(v)+' — ενημερώθηκε και στη λίστα.', 'check');
+  });
+  /* validity confirm (amber) */
+  const validBtn = panel.querySelector('#validConfirm');
+  if(validBtn) validBtn.addEventListener('click', () => {
+    persist.corrected[o.id] = { ...cor(o), validConfirmed:true };
+    save();
+    $('#xPanel').innerHTML = extractionHTML(o); $$('#xFields .xfield').forEach(f=>f.classList.add('in')); $('#xpStatus').classList.add('done'); $('#xpStatusTxt').textContent='Ολοκληρώθηκε.';
+    wireDetail(o);
+    toast(o.supplier+': η ημερομηνία ισχύος επιβεβαιώθηκε.', 'check');
+  });
+  /* delivery add (missing) */
+  const delivSave = panel.querySelector('#delivSave');
+  if(delivSave) delivSave.addEventListener('click', () => {
+    const inp = panel.querySelector('#delivInput');
+    const v = parseFloat(inp.value);
+    if(isNaN(v) || v < 0){ toast('Δώστε έγκυρη τιμή μεταφορικών.', 'info'); return; }
+    persist.corrected[o.id] = { ...cor(o), deliveryCost:v };
+    save();
+    $('#xPanel').innerHTML = extractionHTML(o); $$('#xFields .xfield').forEach(f=>f.classList.add('in')); $('#xpStatus').classList.add('done'); $('#xpStatusTxt').textContent='Ολοκληρώθηκε.';
+    /* The supplier's facsimile is left untouched — the estimate belongs to the AI/
+       human-in-the-loop layer (panel + inbox chip + compare), not the received paper. */
+    wireDetail(o); renderList();
+    toast(o.supplier+': προστέθηκε εκτίμηση μεταφορικών '+eur(v)+'.', 'check');
+  });
+  /* archive */
+  const archBtn = panel.querySelector('#archiveBtn');
+  if(archBtn) archBtn.addEventListener('click', () => archiveOffer(o.id));
+  /* negotiation */
+  const negoBtn = panel.querySelector('#negoBtn');
+  if(negoBtn) negoBtn.addEventListener('click', () => openNegotiation(o.id));
+}
+
+/* ============================================================
+   ARCHIVE (+ 5s undo)
+   ============================================================ */
+function archiveOffer(id){
+  const o = byId(id); if(!o) return;
+  persist.archived[id] = true;
+  state.selection.delete(id);
+  save();
+  if(state.view==='detail') show('list');
+  renderList();
+  toastUndo(o.supplier+': αρχειοθετήθηκε.', () => {
+    delete persist.archived[id]; save(); renderList();
+    toast(o.supplier+': επαναφέρθηκε στις εισερχόμενες.', 'check');
+  });
+}
+
+/* ============================================================
+   COMPARE VIEW
+   ============================================================ */
+function buildCompare(ids){
+  const offers = ids.map(byId).filter(Boolean);
+  if(offers.length < 2) return;
+  state.compareIds = offers.map(o=>o.id);
+  const cat = catOf(offers[0]);
+  $('#cmpTitle').textContent = 'Σύγκριση — '+CATS[cat].name;
+
+  /* union of line keys, in first-seen order */
+  const keys = [];
+  offers.forEach(o => o.lines.forEach(l => { if(!keys.includes(l.key)) keys.push(l.key); }));
+  const lineTotal = (o,k) => { const l = o.lines.find(x=>x.key===k); return l ? l.total : null; };
+
+  /* ---- rows ---- */
+  const rows = [];
+  rows.push({ label:'Συνολικό ποσό', um:null, kind:'total', get:o=>amountOf(o), best:'min', big:true });
+  keys.forEach(k => rows.push({ label:LINE_LABELS[k]||k, um:null, kind:'line', get:o=>lineTotal(o,k), best:'min' }));
+  rows.push({ label:'Μεταφορικά', um:null, kind:'deliv', get:o=>deliveryOf(o), best:'min', gapLabel:'δεν περιλαμβάνεται' });
+  rows.push({ label:'Εργασία (φύτευση/εγκατάσταση)', um:null, kind:'labor', get:o=>o.laborCost, best:'min', gapLabel:'δεν περιλαμβάνεται' });
+  rows.push({ label:'Ισχύς έως', um:null, kind:'valid', get:o=>o.expires, best:'max', fmt:o=>dmy(expiryDate(o)) });
+  rows.push({ label:'Χρόνος παράδοσης', um:null, kind:'days', get:o=>o.deliveryDays, best:'min', fmt:o=>o.deliveryDays+' ημ.' });
+
+  /* header */
+  let thead = '<thead><tr><th class="rowlbl">Στοιχείο</th>';
+  offers.forEach(o => {
+    const pref = isPref(o);
+    thead += '<th class="cmp-col">'+
+      '<div class="ch-sup"><span class="cava" aria-hidden="true">'+esc(o.initial)+'</span><span>'+esc(o.supplier)+'</span></div>'+
+      '<div class="ch-amt">'+esc(eur(amountOf(o)))+'</div>'+
+      '<div class="ch-pref"><button class="btn-pref'+(pref?' on':'')+'" type="button" data-pref="'+o.id+'">'+
+        (pref?ICO.star+'Προτιμώμενη':ICO.star+'Επιλογή προτιμώμενης')+'</button></div>'+
+    '</th>';
+  });
+  thead += '</tr></thead>';
+
+  /* body */
+  let tbody = '<tbody>';
+  rows.forEach(row => {
+    const vals = offers.map(o => row.get(o));
+    const present = vals.map((v,i)=>({v,i})).filter(x=>x.v!=null);
+    if(row.kind!=='total' && row.kind!=='valid' && row.kind!=='days' && present.length===0) return;  /* skip empty extra rows */
+    let bestIdx = -1;
+    if(present.length >= 2){
+      if(row.best==='min') bestIdx = present.reduce((a,b)=> b.v < a.v ? b : a).i;
+      else                 bestIdx = present.reduce((a,b)=> b.v > a.v ? b : a).i;
+    }
+    const soloIdx = present.length===1 ? present[0].i : -1;
+    tbody += '<tr class="'+(row.kind==='total'?'tot':'')+'"><td class="rowlbl">'+esc(row.label)+(row.um?'<span class="rl-um">'+esc(row.um)+'</span>':'')+'</td>';
+    vals.forEach((v,i) => {
+      let disp, cls='cell';
+      if(row.big) cls += ' big';
+      if(v == null){ disp = '<span class="cell gap">'+esc(row.gapLabel||'—')+'</span>'; }
+      else if(row.fmt){ disp = esc(row.fmt(offers[i])); }
+      else { disp = esc(eur(v)); }
+      let tag = '';
+      if(i===bestIdx) tag = '<span class="best-tag">'+ICO.check+'καλύτερο</span>';
+      else if(i===soloIdx && (row.kind==='labor'||row.kind==='deliv'||row.kind==='line')) tag = '<span class="solo-tag">μόνο εδώ</span>';
+      tbody += '<td class="'+(i===bestIdx?'best':'')+'">'+(v==null?disp:'<span class="'+cls+'">'+disp+'</span>')+tag+'</td>';
+    });
+    tbody += '</tr>';
+  });
+  tbody += '</tbody>';
+
+  $('#cmpTable').innerHTML = thead + tbody;
+  renderVerdict(offers, cat);
+  show('compare');
+}
+
+function renderVerdict(offers, cat){
+  const withAmt = offers.map(o => ({ o, amt:amountOf(o) }));
+  const sorted = [...withAmt].sort((a,b)=>a.amt-b.amt);
+  const cheapest = sorted[0], second = sorted[1], priciest = sorted[sorted.length-1];
+  const pct = second.amt>0 ? Math.round((second.amt - cheapest.amt)/second.amt*100) : 0;
+
+  const parts = [];
+  parts.push('Χαμηλότερη τιμή: '+cheapest.o.supplier+' με '+eur(cheapest.amt)+
+    (pct>0 ? ', '+pct+'% κάτω από την επόμενη προσφορά.' : '.'));
+
+  /* delivery gap on the cheapest */
+  if(deliveryOf(cheapest.o) == null){
+    const others = offers.filter(o=>o!==cheapest.o).map(deliveryOf).filter(v=>v!=null);
+    if(others.length){
+      const est = Math.round(others.reduce((s,v)=>s+v,0)/others.length);
+      const adj = cheapest.amt + est;
+      const adjPct = Math.round((second.amt - adj)/second.amt*100);
+      parts.push('Προσοχή: δεν περιλαμβάνει μεταφορικά — με εκτίμηση ~'+eur(est)+' η διαφορά πέφτει στο ~'+adjPct+'%.');
+    } else {
+      parts.push('Προσοχή: δεν περιλαμβάνει μεταφορικά.');
+    }
+  }
+  /* labor as a differentiator (only when NOT everyone includes it) */
+  const withLabor = offers.filter(o=>o.laborCost!=null);
+  if(withLabor.length && withLabor.length < offers.length && priciest.o.laborCost!=null && priciest.o!==cheapest.o){
+    parts.push(priciest.o.supplier+': ακριβότερη επιλογή ('+eur(priciest.amt)+'), αλλά περιλαμβάνει την εργασία ('+eur(priciest.o.laborCost)+').');
+  } else if(pct<=3 && pct>=0){
+    parts.push('Πολύ κοντινές προσφορές (διαφορά '+eur(second.amt-cheapest.amt)+') — η απόφαση κρίνεται στους όρους, όχι στην τιμή.');
+  }
+  /* category-specific note */
+  const NOTE = {
+    ylika:'Η επιλογή αφορά κυρίως το υλικό (φυσική πέτρα έναντι κυβόλιθων), όχι μόνο την τιμή.',
+    ypergolavies:'Δείτε και τους όρους εγγύησης και τον αριθμό ζωνών, όχι μόνο το συνολικό ποσό.',
+    fyta:'Το φυτικό υλικό είναι παρόμοιο· η διαφορά είναι κυρίως στα μεταφορικά και την εργασία φύτευσης.'
+  };
+  if(NOTE[cat]) parts.push(NOTE[cat]);
+
+  const prefInSet = offers.find(isPref);
+  const pickHtml = prefInSet
+    ? '<div class="pick"><span class="pk-lbl">Προτιμώμενη επιλογή: <b>'+esc(prefInSet.supplier)+'</b></span></div>'
+    : '<div class="pick"><span class="pk-lbl">Επιλέξτε «Προτιμώμενη» σε μια στήλη — θα σημειωθεί και στις εισερχόμενες.</span></div>';
+
+  $('#cmpVerdict').innerHTML =
+    '<span class="clip" aria-hidden="true">'+ICO.clip+'</span>'+
+    '<h3>'+ICO.spark+'Ετυμηγορία AI<span class="tag">Προσομοίωση AI</span></h3>'+
+    '<p>'+esc(parts.join(' '))+'</p>'+ pickHtml;
+}
+
+function togglePreferred(id){
+  const o = byId(id); if(!o) return;
+  const cat = catOf(o);
+  if(isPref(o)){ delete persist.preferred[id]; }
+  else {
+    /* one preferred per category — clear others in this category */
+    OFFERS.forEach(x => { if(catOf(x)===cat && persist.preferred[x.id]) delete persist.preferred[x.id]; });
+    persist.preferred[id] = true;
+  }
+  save();
+  buildCompare(state.compareIds);   /* re-render compare (updates buttons/verdict) */
+  renderList();
+  toast(isPref(o) ? o.supplier+': ορίστηκε ως προτιμώμενη.' : o.supplier+': αφαιρέθηκε από προτιμώμενη.', isPref(o)?'star':'check');
+}
+
+/* ============================================================
+   NEGOTIATION DRAFT
+   ============================================================ */
+function genNegotiation(o){
+  const amt = amountOf(o);
+  /* target band computed from the cheapest same-category offer (never names it) */
+  const sameCat = OFFERS.filter(x => catOf(x)===catOf(o) && !isArch(x));
+  const minAmt = Math.min(...sameCat.map(amountOf));
+  let bandLo = 5, bandHi = 8;
+  if(minAmt < amt){
+    const gap = Math.round((amt - minAmt)/amt*100);
+    bandHi = Math.max(4, gap);
+    bandLo = Math.max(3, bandHi - 4);
+  }
+  return 'Αγαπητοί συνεργάτες,\n\n'+
+    'σας ευχαριστούμε για την προσφορά σας «'+o.subject+'» (προμηθευτής '+o.supplier+'), συνολικού ποσού '+eur(amt)+', που λάβαμε στις '+dmy(receivedDate(o))+'.\n\n'+
+    'Η πρότασή σας μάς ενδιαφέρει και θα θέλαμε να συνεργαστούμε μαζί σας για το συγκεκριμένο έργο. Ωστόσο, έχουμε λάβει και ανταγωνιστικές προσφορές σε αισθητά χαμηλότερο επίπεδο τιμής. Θα εκτιμούσαμε ιδιαίτερα αν μπορούσατε να επανεξετάσετε την τιμή σας — μια βελτίωση της τάξης του '+bandLo+'–'+bandHi+'% θα έκανε την προσφορά σας άμεσα ανταγωνιστική και θα μας επέτρεπε να προχωρήσουμε.\n\n'+
+    'Παραμένουμε στη διάθεσή σας για να τα πούμε και από κοντά.\n\n'+
+    SIG;
+}
+
+/* ---------------- Modal focus management (POLISH P5) ----------------
+   Uses `inert` on the modal (not aria-hidden) so hiding it never fights
+   with a focused descendant. Focus is explicitly moved out before the
+   modal goes inert, and restored to the element that opened it. The
+   background <main> is made inert while the modal is open so background
+   controls are unreachable — a real a11y improvement, not just silence
+   of the console warning. */
+const modalEl = $('#modal');
+const mainEl  = $('#pageMain');
+function setInert(el, v){ if(!el) return; try{ el.inert = v; }catch(e){} if(v) el.setAttribute('inert',''); else el.removeAttribute('inert'); }
+let lastFocusEl = null;
+
+let draftToken = 0;
+let negoId = null;
+function openNegotiation(id){
+  const o = byId(id); if(!o) return;
+  negoId = id;
+  lastFocusEl = document.activeElement;
+  $('#mSub').textContent = o.supplier+' · '+eur(amountOf(o));
+  setInert(modalEl, false);
+  setInert(mainEl, true);
+  document.body.classList.add('modal-open');
+  runDraftTheater(o);
+  setTimeout(()=>{ const c=$('#mClose'); if(c) c.focus(); }, 60);
+}
+function closeNegotiation(){
+  draftToken++;
+  negoId = null;
+  /* move focus out BEFORE inerting, so we never inert a container that still holds focus */
+  if(modalEl.contains(document.activeElement)) document.activeElement.blur();
+  document.body.classList.remove('modal-open');
+  setInert(modalEl, true);
+  setInert(mainEl, false);
+  if(lastFocusEl && document.contains(lastFocusEl) && typeof lastFocusEl.focus === 'function') lastFocusEl.focus();
+  lastFocusEl = null;
+}
+function runDraftTheater(o){
+  const my = ++draftToken;
+  const box = $('#draftBox'), ta = $('#draftText');
+  const full = genNegotiation(o);
+  if(drafted.has(o.id) || REDUCED()){
+    ta.value = full; ta.disabled = false; box.classList.remove('busy'); drafted.add(o.id); return;
+  }
+  ta.value = ''; ta.disabled = true; box.classList.add('busy');
+  setTimeout(() => {
+    if(my !== draftToken) return;
+    box.classList.remove('busy'); drafted.add(o.id);
+    let i = 0;
+    (function type(){
+      if(my !== draftToken) return;
+      i = Math.min(full.length, i+4);
+      ta.value = full.slice(0,i); ta.scrollTop = ta.scrollHeight;
+      if(i < full.length) setTimeout(type, 12);
+      else ta.disabled = false;
+    })();
+  }, 560 + Math.random()*260);
+}
+
+/* ---------------- Clipboard (async + execCommand fallback; never throws) ---------------- */
+function legacyCopy(text){
+  try{
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly','');
+    ta.style.position='fixed'; ta.style.top='-1000px'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  }catch(e){ return false; }
+}
+async function copyDraft(){
+  const ta = $('#draftText'); if(!ta) return;
+  const text = ta.value; let ok = false;
+  try{ if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(text); ok = true; } }catch(e){ ok = false; }
+  if(!ok) ok = legacyCopy(text);
+  const btn = $('#copyBtn'), lbl = $('#copyLbl');
+  if(ok){
+    btn.classList.add('done'); lbl.textContent = 'Αντιγράφηκε';
+    setTimeout(()=>{ btn.classList.remove('done'); lbl.textContent = 'Αντιγραφή'; }, 1900);
+    toast('Το μήνυμα αντιγράφηκε — επικολλήστε το στο email σας.', 'check');
+  } else {
+    toast('Δεν ήταν δυνατή η αντιγραφή. Επιλέξτε το κείμενο χειροκίνητα.', 'info');
+  }
+}
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+let toastTimer = null;
+const TOAST_ICONS = {
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 8.5v5"/><circle cx="12" cy="16.3" r=".7" fill="currentColor" stroke="none"/>',
+  star:'<path d="m12 2 2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77 5.82 21l1.18-6.86-5-4.87 7.1-1.01Z"/>'
+};
+function setToastIcon(k){ $('#toastIco').innerHTML = TOAST_ICONS[k] || TOAST_ICONS.check; }
+function toast(msg, kind){
+  clearTimeout(toastTimer);
+  setToastIcon(kind||'check');
+  $('#toastMsg').textContent = msg;
+  $('#toastUndo').hidden = true;
+  const el = $('#toast'); el.classList.add('show');
+  toastTimer = setTimeout(()=>el.classList.remove('show'), 2800);
+}
+function toastUndo(msg, undoFn){
+  clearTimeout(toastTimer);
+  setToastIcon('check');
+  $('#toastMsg').textContent = msg;
+  const undo = $('#toastUndo'); undo.hidden = false;
+  undo.onclick = () => { clearTimeout(toastTimer); $('#toast').classList.remove('show'); undo.hidden = true; undo.onclick = null; undoFn(); };
+  const el = $('#toast'); el.classList.add('show');
+  toastTimer = setTimeout(()=>{ el.classList.remove('show'); undo.hidden = true; undo.onclick = null; }, 5000);
+}
+
+/* ============================================================
+   WIRING
+   ============================================================ */
+function setCategory(cat){
+  state.category = cat;
+  if(cat==='archive') clearSelection();
+  renderList();
+}
+function setSort(s){
+  if(state.sort===s) return;
+  state.sort = s;
+  $('#sortNewest').setAttribute('aria-pressed', String(s==='newest'));
+  $('#sortAmount').setAttribute('aria-pressed', String(s==='amount'));
+  $('#sortExpiry').setAttribute('aria-pressed', String(s==='expiry'));
+  renderList();
+  const lbl = s==='amount' ? 'μεγαλύτερο ποσό' : s==='expiry' ? 'λήγουν σύντομα' : 'νεότερες πρώτα';
+  toast('Ταξινόμηση: '+lbl+'.', 'info');
+}
+
+function wire(){
+  /* category chips (delegated) */
+  $('#catChips').addEventListener('click', e => {
+    const b = e.target.closest('.catchip'); if(!b) return;
+    setCategory(b.dataset.cat);
+  });
+  /* search */
+  $('#searchInput').addEventListener('input', e => { state.search = e.target.value; renderList(); });
+  /* sort */
+  $('#sortNewest').addEventListener('click', ()=>setSort('newest'));
+  $('#sortAmount').addEventListener('click', ()=>setSort('amount'));
+  $('#sortExpiry').addEventListener('click', ()=>setSort('expiry'));
+  /* list interactions (delegated) */
+  $('#offerList').addEventListener('click', e => {
+    const ck = e.target.closest('[data-ck]');
+    if(ck){ toggleSelect(ck.dataset.ck); return; }
+    const op = e.target.closest('[data-open]');
+    if(op){ openDetail(op.dataset.open); return; }
+  });
+  /* selection bar */
+  $('#clearSel').addEventListener('click', clearSelection);
+  $('#compareBtn').addEventListener('click', () => {
+    const sel = selectedOffers();
+    const cats = new Set(sel.map(catOf));
+    if(sel.length>=2 && cats.size===1) buildCompare(sel.map(o=>o.id));
+  });
+  /* nav backs */
+  $('#detailBack').addEventListener('click', ()=>{ state.detailId=null; show('list'); });
+  $('#compareBack').addEventListener('click', ()=>show('list'));
+  /* compare preferred (delegated) */
+  $('#cmpTable').addEventListener('click', e => {
+    const b = e.target.closest('[data-pref]'); if(!b) return;
+    togglePreferred(b.dataset.pref);
+  });
+  /* negotiation modal */
+  $('#mClose').addEventListener('click', closeNegotiation);
+  $('#mCloseBtn').addEventListener('click', closeNegotiation);
+  $('#overlay').addEventListener('click', closeNegotiation);
+  $('#copyBtn').addEventListener('click', copyDraft);
+  document.addEventListener('keydown', e => { if(e.key==='Escape' && negoId!==null) closeNegotiation(); });
+}
+
+/* ---------------- Init ---------------- */
+loadState();
+wire();
+renderList();
+setInert(modalEl, true);   /* modal starts closed+inert; HTML also carries the static attribute */
+</script>
+</body>
+</html>

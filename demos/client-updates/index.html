@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ενημερώσεις Πελατών με AI — LaFlow</title>
+<link rel="icon" href="data:,">
+<style>
+  /* ============================================================
+     LF-03 REDESIGN — ΕΝΗΜΕΡΩΣΕΙΣ ΠΕΛΑΤΩΝ ΜΕ AI
+     Visual/interaction redesign of laflow-demos/built/client-updates.
+     Same engine (state, template-stitching, persistence) — new
+     "atelier stationery" design language: editorial serif display,
+     numbered step rail, letterhead mail preview with paper grain +
+     torn seam, sticky mobile approve bar. Offline, zero network,
+     Greek UI, English code. Fonts via local fallback stacks only.
+     ============================================================ */
+  :root{
+    --forest-deep:#12302a;
+    --forest:#1a3c34;
+    --forest-tint:#24493f;
+    --sage:#8a9a5b;
+    --sage-light:#a3b18a;
+    --sage-wash:rgba(138,154,91,.14);
+    --cream:#faf6ee;
+    --cream-alt:#f3eee1;
+    --cream-deep:#ece1c9;
+    --ink:#233028;
+    --ink-soft:#4d5b50;
+    --ink-faint:#6c7a6e;
+    --terracotta:#bb6b3d;
+    --terracotta-deep:#a05526;
+    --terracotta-wash:rgba(187,107,61,.13);
+    --gold:#b59445;
+    --gold-deep:#8a6d2a;
+    --gold-wash:rgba(181,148,69,.16);
+    --line:rgba(26,60,52,.14);
+    --line-strong:rgba(26,60,52,.26);
+    --paper:#fffdf7;
+    --danger:#9c3f2b;
+    --read-green:#5c7037;
+    --serif:'Cormorant Garamond','Times New Roman',Georgia,serif;
+    --sans:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+    --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:22px; --r-pill:999px;
+    --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-7:32px;
+    --shadow-1:0 1px 2px rgba(18,48,42,.05),0 6px 18px rgba(18,48,42,.06);
+    --shadow-2:0 4px 14px rgba(18,48,42,.09),0 20px 44px rgba(18,48,42,.11);
+    --shadow-3:0 22px 56px rgba(18,48,42,.28);
+    --topbar-h:64px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{min-height:100%}
+  body{
+    font-family:var(--sans);background:var(--cream);color:var(--ink);
+    line-height:1.5;-webkit-font-smoothing:antialiased;font-size:17px;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--sage-light);color:var(--forest-deep)}
+  button{font-family:inherit;cursor:pointer}
+  input,select,textarea{font-family:inherit}
+  h1,h2,h3{font-family:var(--serif)}
+
+  /* ============ TOP BAR (slim app chrome) ============ */
+  .topbar{
+    min-height:var(--topbar-h);background:var(--forest-deep);color:var(--cream);
+    display:flex;align-items:center;gap:16px;padding:10px 26px;
+    box-shadow:0 2px 10px rgba(0,0,0,.14);
+  }
+  .brand{display:flex;align-items:center;gap:11px;flex:none}
+  .brand .mark{width:38px;height:38px;border-radius:10px;background:var(--forest);border:1.5px solid rgba(181,148,69,.5);display:grid;place-items:center;flex:none}
+  .brand .mark svg{width:20px;height:20px;color:var(--sage-light)}
+  .brand .nm{font-family:var(--serif);font-weight:600;font-size:22px;line-height:1;color:var(--cream)}
+  .brand .nm b{color:var(--gold);font-weight:600}
+  .tb-divider{width:1px;height:24px;background:rgba(250,246,238,.2);flex:none}
+  .feat-label{font-size:14px;font-weight:600;color:var(--sage-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .topbar .spacer{flex:1}
+  .demo-tag{flex:none;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--sage-light);border:1px solid rgba(163,177,138,.4);padding:7px 12px;border-radius:999px;white-space:nowrap}
+
+  /* ============ PAGE HEAD (editorial letterhead feel) ============ */
+  .page{max-width:1280px;margin:0 auto;padding:28px 26px 70px}
+  .page-head{margin-bottom:22px;max-width:640px}
+  .eyebrow{font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-deep);font-weight:700;margin-bottom:8px}
+  .page-title{font-size:36px;font-weight:600;line-height:1.1;color:var(--forest-deep)}
+  .page-title em{font-style:normal;color:var(--terracotta-deep)}
+  .page-promise{font-size:17px;color:var(--ink-soft);margin-top:9px;line-height:1.5}
+
+  /* ============ TABS (segmented pill) ============ */
+  .tabs{display:inline-flex;gap:4px;background:var(--cream-alt);border:1.5px solid var(--line);border-radius:var(--r-pill);padding:5px;margin-bottom:20px}
+  .tab{
+    min-height:46px;padding:10px 20px;border:none;background:transparent;color:var(--ink-soft);
+    font-size:15.5px;font-weight:700;display:inline-flex;align-items:center;gap:8px;border-radius:var(--r-pill);
+    transition:background .15s,color .15s;
+  }
+  .tab svg{width:18px;height:18px;flex:none}
+  .tab:hover{color:var(--forest)}
+  .tab[aria-selected="true"]{background:var(--forest);color:#fff;box-shadow:var(--shadow-1)}
+  .tab .cnt{font-size:12.5px;font-weight:700;background:rgba(255,255,255,.9);border-radius:999px;padding:1px 9px;color:var(--forest)}
+  .tab[aria-selected="true"] .cnt{background:rgba(255,255,255,.22);color:#fff}
+  .view[hidden]{display:none}
+
+  /* subtitle (the approve line — verbatim anchor), now a trust banner */
+  .approve-line{
+    display:flex;gap:13px;align-items:flex-start;font-size:15.5px;color:var(--ink-soft);
+    background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:var(--r-md);
+    padding:14px 16px;margin-bottom:20px;box-shadow:var(--shadow-1);
+  }
+  .approve-line .ic{flex:none;width:34px;height:34px;border-radius:50%;background:var(--gold-wash);display:grid;place-items:center;margin-top:1px}
+  .approve-line svg{width:18px;height:18px;color:var(--gold-deep)}
+  .approve-line b{color:var(--forest);font-weight:700}
+
+  /* ============ COMPOSER LAYOUT ============ */
+  .composer{display:grid;grid-template-columns:392px minmax(0,1fr);gap:22px;align-items:start}
+  .rail{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .stage{display:flex;flex-direction:column;gap:14px;min-width:0}
+
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1)}
+  .card-pad{padding:16px 18px}
+
+  .step-badge{
+    width:28px;height:28px;border-radius:50%;background:var(--forest);color:var(--cream);flex:none;
+    display:grid;place-items:center;font-family:var(--serif);font-weight:700;font-size:15px;
+  }
+  .rail-hd{display:flex;align-items:center;gap:11px;margin-bottom:10px}
+  .rail-hd .ttl{font-family:var(--serif);font-weight:600;font-size:20px;color:var(--forest);line-height:1.15}
+
+  /* project selector */
+  .proj-btns{display:flex;flex-direction:column;gap:9px}
+  .proj-btn{
+    min-height:58px;border:1.5px solid var(--line-strong);border-radius:var(--r-md);background:#fff;
+    display:flex;align-items:center;gap:12px;padding:10px 14px;text-align:left;transition:border-color .15s,background .15s,box-shadow .15s;min-width:0;
+  }
+  .proj-btn:hover{border-color:var(--forest)}
+  .proj-btn[aria-pressed="true"]{border-color:var(--forest);background:var(--sage-wash);box-shadow:0 0 0 2px rgba(26,60,52,.12)}
+  .proj-btn .pdot{width:15px;height:15px;border-radius:50%;background:var(--pc,var(--forest));flex:none;border:1px solid rgba(0,0,0,.12)}
+  .proj-btn>span:not(.pdot):not(.preg){min-width:0}
+  .proj-btn .pn{display:block;font-weight:700;font-size:16.5px;color:var(--ink);line-height:1.25}
+  .proj-btn .pcl{display:block;font-size:13.5px;color:var(--ink-soft);margin-top:1px}
+  .proj-btn .preg{margin-left:auto;flex:none;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-deep);border:1px solid rgba(181,148,69,.5);border-radius:999px;padding:3px 9px}
+
+  /* delta summary strip */
+  .delta-sum{font-size:14.5px;color:var(--ink-soft);line-height:1.55;padding:12px 18px;border-top:1px dashed var(--line)}
+  .delta-sum b{color:var(--forest)}
+
+  /* section (accordion on phone) */
+  .sec-head{
+    width:100%;display:flex;align-items:center;gap:11px;padding:15px 18px;border:none;background:transparent;
+    text-align:left;border-radius:var(--r-lg) var(--r-lg) 0 0;min-height:56px;
+  }
+  .sec-head:disabled{cursor:default}
+  .sec-head .ttl{font-family:var(--serif);font-weight:600;font-size:20px;color:var(--forest);line-height:1.1}
+  .sec-head .sub{font-size:13.5px;color:var(--ink-soft);margin-top:2px}
+  .sec-head .chev{margin-left:auto;flex:none;width:22px;height:22px;color:var(--ink-soft);transition:transform .2s;display:none}
+  .sec-head[aria-expanded="false"] .chev{transform:rotate(-90deg)}
+  .sec-body{padding:2px 18px 16px}
+
+  /* delta checklist */
+  .ditem{
+    display:flex;align-items:flex-start;gap:12px;padding:11px 8px;min-height:48px;border-radius:var(--r-sm);
+    cursor:pointer;transition:background .13s;border-bottom:1px dashed var(--line);
+  }
+  .ditem:last-child{border-bottom:none}
+  .ditem:hover{background:var(--cream-alt)}
+  .ditem input{position:absolute;opacity:0;pointer-events:none}
+  .dbox{
+    width:27px;height:27px;flex:none;border:2px solid var(--line-strong);border-radius:8px;background:#fff;
+    display:grid;place-items:center;color:#fff;transition:all .13s;margin-top:2px;
+  }
+  .dbox svg{width:15px;height:15px;opacity:0}
+  .ditem input:checked + .dbox{background:var(--forest);border-color:var(--forest)}
+  .ditem input:checked + .dbox svg{opacity:1}
+  .ditem input:focus-visible + .dbox{outline:3px solid var(--forest);outline-offset:2px}
+  .dmain{flex:1;min-width:0}
+  .dtitle{font-size:16.5px;font-weight:600;color:var(--ink);line-height:1.4;overflow-wrap:anywhere}
+  .ditem input:not(:checked) ~ .dmain .dtitle{color:var(--ink-soft);font-weight:500}
+  .dmeta{display:flex;gap:7px;align-items:center;margin-top:4px;flex-wrap:wrap}
+  .dtype{
+    display:inline-flex;gap:5px;align-items:center;font-size:12.5px;font-weight:700;color:var(--forest);
+    background:var(--sage-wash);border:1px solid var(--line);border-radius:999px;padding:3px 10px;
+  }
+  .dtype svg{width:13px;height:13px}
+  .dtype.ph{color:#fff;background:var(--forest);border-color:var(--forest)}
+  .dtype.pay{color:#fff;background:var(--gold-deep);border-color:var(--gold-deep)}
+  .dnote{font-size:12.5px;color:var(--ink-faint)}
+
+  /* photo picker */
+  .pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .ptile{
+    position:relative;border:2px solid var(--line);border-radius:var(--r-md);background:#fff;padding:0;
+    overflow:hidden;transition:border-color .15s,box-shadow .15s,transform .15s;text-align:left;min-width:0;
+  }
+  .ptile:hover{border-color:var(--forest);transform:translateY(-1px)}
+  .ptile:focus-visible{outline:3px solid var(--forest);outline-offset:2px}
+  .ptile[aria-pressed="true"]{border-color:var(--terracotta-deep);box-shadow:0 0 0 2.5px rgba(160,85,38,.32)}
+  .ptile .ph-art{display:block;width:100%;aspect-ratio:4/3;background:var(--cream-alt)}
+  .ptile .ph-art svg{display:block;width:100%;height:100%}
+  .ptile .ph-tag{
+    position:absolute;top:5px;left:5px;font-size:10.5px;font-weight:700;letter-spacing:.05em;
+    background:rgba(18,48,42,.82);color:#fff;border-radius:999px;padding:2px 8px;
+  }
+  .ptile .ph-ord{
+    position:absolute;top:5px;right:5px;width:24px;height:24px;border-radius:50%;
+    background:var(--terracotta-deep);color:#fff;font-size:13.5px;font-weight:700;
+    display:grid;place-items:center;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25);
+  }
+  .ptile .ph-cap{display:block;font-size:12px;font-weight:600;color:var(--ink);padding:6px 7px 7px;line-height:1.3;min-height:36px}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+  .ptile.deny{animation:shake .3s ease 2}
+  .pcap-note{font-size:13.5px;color:var(--ink-soft);margin:10px 2px 0;display:flex;gap:7px;align-items:center}
+  .pcap-note svg{width:15px;height:15px;flex:none;color:var(--gold-deep)}
+
+  /* selected order strip */
+  .ordwrap{margin-top:12px;border-top:1px dashed var(--line);padding-top:11px}
+  .ord-lbl{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-bottom:8px}
+  .ordlist{display:flex;flex-direction:column;gap:7px}
+  .ordrow{display:flex;align-items:center;gap:9px;background:var(--cream-alt);border:1px solid var(--line);border-radius:var(--r-sm);padding:5px 7px}
+  .ordrow .oi{width:24px;height:24px;border-radius:50%;background:var(--terracotta-deep);color:#fff;font-size:13px;font-weight:700;display:grid;place-items:center;flex:none}
+  .ordrow .oa{width:46px;height:34px;border-radius:7px;overflow:hidden;flex:none;border:1px solid rgba(0,0,0,.12)}
+  .ordrow .oa svg{display:block;width:100%;height:100%}
+  .ordrow .on{flex:1;min-width:0;font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ordbtn{
+    min-width:44px;min-height:44px;flex:none;border:1.5px solid var(--line-strong);border-radius:9px;background:#fff;
+    color:var(--forest);display:grid;place-items:center;transition:all .13s;
+  }
+  .ordbtn svg{width:16px;height:16px}
+  .ordbtn:hover:not(:disabled){border-color:var(--forest);background:#fff}
+  .ordbtn:disabled{opacity:.3;cursor:default}
+  .ordempty{font-size:14px;color:var(--ink-soft);font-style:italic;padding:2px}
+
+  /* ============ STAGE: controls + mail frame ============ */
+  .stage-label{display:flex;align-items:center;gap:11px;margin:2px 2px 0}
+  .stage-label .ttl{font-family:var(--serif);font-weight:600;font-size:20px;color:var(--forest)}
+
+  .ctl-row{display:flex;gap:11px;align-items:center;flex-wrap:wrap;padding:14px 16px}
+  .ctl-lbl{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);font-weight:700}
+  .toneseg{display:flex;border:1.5px solid var(--line-strong);border-radius:999px;overflow:hidden;background:#fff}
+  .tonebtn{
+    min-height:46px;padding:9px 18px;border:none;background:transparent;color:var(--ink-soft);
+    font-size:15.5px;font-weight:700;display:inline-flex;align-items:center;gap:7px;transition:all .14s;
+  }
+  .tonebtn svg{width:16px;height:16px}
+  .tonebtn[aria-pressed="true"]{background:var(--forest);color:#fff}
+  .rephrase{
+    min-height:46px;padding:9px 18px;border:1.5px solid var(--forest);border-radius:999px;background:#fff;
+    color:var(--forest);font-weight:700;font-size:15.5px;display:inline-flex;align-items:center;gap:8px;
+    transition:all .14s;position:relative;overflow:hidden;
+  }
+  .rephrase svg{width:17px;height:17px}
+  .rephrase:hover:not(:disabled){background:var(--sage-wash)}
+  .rephrase:disabled{opacity:.65;cursor:wait}
+  .subj-chips{display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 15px}
+  .schip{
+    min-height:44px;padding:8px 15px;border:1.5px dashed var(--line-strong);border-radius:999px;background:#fff;
+    color:var(--ink);font-size:14.5px;font-weight:600;display:inline-flex;align-items:center;gap:7px;
+    transition:all .13s;text-align:left;
+  }
+  .schip svg{width:15px;height:15px;color:var(--gold-deep);flex:none}
+  .schip:hover{border-color:var(--forest);border-style:solid}
+  .schip[aria-pressed="true"]{background:var(--forest);border-color:var(--forest);border-style:solid;color:#fff}
+  .schip[aria-pressed="true"] svg{color:var(--sage-light)}
+
+  /* mail frame — the "letterhead" signature element */
+  .mailframe{background:linear-gradient(180deg,#e9ece3,#dfe3d7);border:1px solid var(--line);border-radius:var(--r-xl);padding:16px;box-shadow:var(--shadow-2)}
+  .mail-chrome{background:#f6f7f1;border:1px solid rgba(26,60,52,.12);border-bottom:none;border-radius:var(--r-lg) var(--r-lg) 0 0;padding:13px 20px 11px}
+  .mc-row{display:flex;gap:9px;align-items:baseline;font-size:14px;color:var(--ink-soft);padding:3px 0;min-width:0;flex-wrap:wrap}
+  .mc-row .k{flex:none;width:52px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--ink-soft)}
+  .mc-row .v{color:var(--ink);font-weight:600;min-width:0;overflow-wrap:anywhere}
+  .mc-row .v .em{color:var(--ink-soft);font-weight:500}
+  .mc-subj{border-top:1px dashed rgba(26,60,52,.16);margin-top:5px;padding-top:9px;align-items:center}
+  #subjInput{
+    flex:1;min-width:200px;min-height:44px;border:1.5px solid transparent;border-radius:8px;background:transparent;
+    font-size:16.5px;font-weight:700;color:var(--ink);padding:6px 9px;outline:none;transition:all .14s;
+  }
+  #subjInput:hover{border-color:var(--line-strong)}
+  #subjInput:focus{border-color:var(--forest);background:#fff;box-shadow:0 0 0 3px rgba(26,60,52,.13)}
+
+  /* the paper itself: torn seam + faint grain */
+  .mail-paper{
+    position:relative;background-color:var(--paper);
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.035 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    background-repeat:repeat;background-size:140px 140px;
+    border:1px solid rgba(26,60,52,.12);border-radius:0 0 var(--r-lg) var(--r-lg);
+    padding:26px 28px 26px;min-height:340px;
+  }
+  .mail-paper::before{
+    content:'';position:absolute;left:0;right:0;top:-7px;height:14px;pointer-events:none;
+    background-image:linear-gradient(135deg,var(--paper) 50%,transparent 50%),linear-gradient(45deg,var(--paper) 50%,transparent 50%);
+    background-size:14px 14px;background-position:0 0,7px 0;background-repeat:repeat-x;
+  }
+  .mail-body{position:relative;font-size:17px;line-height:1.72;color:var(--ink)}
+  .mail-body p{margin:0 0 13px}
+  .mail-body p:last-child{margin-bottom:0}
+  .mail-tasks{margin:2px 0 14px;padding-left:4px;list-style:none}
+  .mail-tasks li{position:relative;padding:2px 0 2px 22px;line-height:1.55}
+  .mail-tasks li::before{content:'';position:absolute;left:2px;top:12px;width:7px;height:7px;border-radius:2px;background:var(--sage);transform:rotate(45deg)}
+  .mail-vale{margin-top:19px !important;margin-bottom:0 !important;color:var(--ink-soft)}
+  .sent{border-radius:4px;transition:background .3s;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+  .sent-in{background:rgba(138,154,91,.32)}
+  .sent-out{background:rgba(156,63,43,.16);text-decoration:line-through;text-decoration-color:var(--danger)}
+  .mail-photos{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:6px 0 16px}
+  .mp-cell{border:1px solid rgba(26,60,52,.14);border-radius:var(--r-sm);overflow:hidden;background:#fff;transition:box-shadow .3s}
+  .mp-cell.sent-in{box-shadow:0 0 0 3px rgba(138,154,91,.55)}
+  .mp-cell svg{display:block;width:100%;aspect-ratio:4/3;height:auto}
+  .mp-cap{display:flex;justify-content:space-between;gap:7px;align-items:center;font-size:12.5px;color:var(--ink-soft);padding:6px 9px}
+  .mp-cap b{color:var(--ink);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mp-cap .tg{flex:none;font-size:10.5px;font-weight:700;background:var(--cream-alt);border:1px solid var(--line);border-radius:999px;padding:1px 8px;color:var(--forest)}
+  .mail-sig{position:relative;margin-top:19px;padding-top:15px;border-top:1.5px solid rgba(26,60,52,.12)}
+  .mail-sig .sn{font-family:var(--serif);font-weight:600;font-size:21px;color:var(--forest)}
+  .mail-sig .sd{font-size:13.5px;color:var(--ink-soft);line-height:1.55;margin-top:2px}
+
+  /* shimmer overlay on the paper while "the AI drafts" */
+  .mail-paper.busy .mail-body,.mail-paper.busy .mail-sig{opacity:.35}
+  .draft-veil{position:absolute;inset:0;display:none;border-radius:0 0 var(--r-lg) var(--r-lg);overflow:hidden}
+  .mail-paper.busy .draft-veil{display:block}
+  .draft-veil::after{
+    content:'';position:absolute;inset:0;
+    background:linear-gradient(105deg,transparent 30%,rgba(138,154,91,.18) 50%,transparent 70%);
+    animation:shim 1.1s linear infinite;
+  }
+  @keyframes shim{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+  .draft-veil .dv-lbl{
+    position:absolute;top:14px;left:50%;transform:translateX(-50%);
+    background:var(--forest-deep);color:#fff;font-size:13.5px;font-weight:600;
+    border-radius:999px;padding:8px 16px;display:flex;gap:8px;align-items:center;white-space:nowrap;
+  }
+  .draft-veil .dv-lbl svg{width:15px;height:15px;color:var(--sage-light)}
+  .typing::after{
+    content:'';display:inline-block;width:2px;height:1em;background:var(--terracotta);
+    margin-left:2px;vertical-align:-2px;animation:blink .75s steps(1) infinite;
+  }
+  @keyframes blink{50%{opacity:0}}
+
+  /* why + approve row */
+  .after-mail{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:space-between}
+  .why-row{position:relative}
+  .whybtn{
+    min-height:46px;border:none;background:transparent;color:var(--forest);font-weight:700;font-size:15px;
+    display:inline-flex;align-items:center;gap:7px;text-decoration:underline;text-underline-offset:3px;padding:8px 6px;
+  }
+  .whybtn svg{width:17px;height:17px;flex:none;color:var(--gold-deep)}
+  .whypop{
+    position:absolute;bottom:calc(100% + 10px);left:0;z-index:60;width:min(430px,calc(100vw - 40px));
+    background:#fff;border:1.5px solid var(--sage);border-radius:var(--r-lg);box-shadow:var(--shadow-3);
+    padding:16px 18px;
+  }
+  .whypop[hidden]{display:none}
+  .whypop h3{font-size:15px;font-weight:700;color:var(--forest);display:flex;gap:8px;align-items:center}
+  .whypop h3 svg{width:16px;height:16px;color:var(--sage)}
+  .whypop h4{font-size:12px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin:11px 0 5px}
+  .whypop ul{list-style:none}
+  .whypop li{font-size:14.5px;color:var(--ink);padding:3px 0 3px 20px;position:relative;line-height:1.45}
+  .whypop li::before{content:'';position:absolute;left:4px;top:11px;width:7px;height:7px;border-radius:50%;background:var(--sage)}
+  .whypop li.exc::before{background:var(--terracotta)}
+  .whypop li .q{color:var(--ink-soft)}
+  .whypop .whynote{font-size:12.5px;color:var(--ink-soft);margin-top:11px;padding-top:9px;border-top:1px dashed var(--line)}
+  .approve-bar{flex:none}
+  .approve{
+    min-height:54px;padding:13px 26px;border:none;border-radius:var(--r-md);
+    background:var(--terracotta-deep);color:#fff;font-weight:700;font-size:17px;
+    display:inline-flex;align-items:center;gap:10px;transition:background .15s,transform .12s;
+    position:relative;overflow:hidden;
+  }
+  .approve svg{width:19px;height:19px}
+  .approve:hover:not(:disabled){background:#8f4a1f}
+  .approve:active{transform:translateY(1px)}
+  .approve:disabled{opacity:.65;cursor:wait}
+  .approve.shimmer::after{
+    content:'';position:absolute;inset:0;
+    background:linear-gradient(105deg,transparent 25%,rgba(255,255,255,.4) 50%,transparent 75%);
+    animation:shim 1.1s linear infinite;
+  }
+
+  /* ============ HISTORY VIEW ============ */
+  .hist-top{display:flex;flex-direction:column;gap:14px;margin-bottom:18px}
+  .sched{display:flex;gap:14px;align-items:flex-start;padding:16px 18px}
+  /* ≥44px tappable region; the 56×32 pill is drawn by ::before so the
+     visual stays unchanged (STANDARDS §1 touch-target floor) */
+  .switch{
+    position:relative;width:56px;height:44px;flex:none;border:none;background:transparent;
+    padding:0;border-radius:999px;cursor:pointer;
+  }
+  .switch::before{
+    content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);
+    width:56px;height:32px;border-radius:999px;background:rgba(26,60,52,.22);transition:background .18s;
+  }
+  .switch::after{
+    content:'';position:absolute;left:3px;top:50%;transform:translateY(-50%) translateX(0);
+    width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.3);transition:transform .18s;
+  }
+  .switch[aria-checked="true"]::before{background:var(--forest)}
+  .switch[aria-checked="true"]::after{transform:translateY(-50%) translateX(24px)}
+  .switch:focus-visible{outline:3px solid var(--forest);outline-offset:3px}
+  .sched-main{min-width:0}
+  .sched-t{font-size:16.5px;font-weight:700;color:var(--ink);display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+  .sched-t svg{width:18px;height:18px;color:var(--gold-deep);flex:none}
+  .sched-d{font-size:14.5px;color:var(--ink-soft);margin-top:4px;line-height:1.5}
+  .hist-filter{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .hf-lbl{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin-right:4px}
+  .hfchip{
+    min-height:46px;padding:9px 16px;border-radius:999px;border:1.5px solid var(--line-strong);
+    background:#fff;color:var(--ink);font-size:15px;font-weight:600;display:inline-flex;align-items:center;gap:8px;transition:all .14s;
+  }
+  .hfchip .dot{width:12px;height:12px;border-radius:50%;background:var(--pc,var(--forest));flex:none;border:1px solid rgba(0,0,0,.12)}
+  .hfchip:hover{border-color:var(--forest)}
+  .hfchip[aria-pressed="true"]{background:var(--pc,var(--forest));border-color:var(--pc,var(--forest));color:#fff}
+  .hfchip[aria-pressed="true"] .dot{background:#fff;border-color:rgba(255,255,255,.7)}
+
+  .hist-list{display:flex;flex-direction:column;gap:13px}
+  .hentry{overflow:hidden}
+  .he-head{display:flex;gap:12px;align-items:flex-start;padding:15px 18px 12px;border-left:6px solid var(--pc,var(--forest));border-radius:var(--r-lg) 0 0 0}
+  .he-main{flex:1;min-width:0}
+  .he-proj{display:inline-flex;gap:6px;align-items:center;font-size:13px;font-weight:700;color:var(--pc,var(--forest))}
+  .he-proj i{width:9px;height:9px;border-radius:50%;background:var(--pc,var(--forest));flex:none}
+  .he-subj{font-size:18px;font-weight:700;color:var(--ink);line-height:1.35;margin-top:3px;overflow-wrap:anywhere}
+  .he-date{font-size:14px;color:var(--ink-soft);margin-top:3px}
+  .he-status{flex:none;display:flex;flex-direction:column;gap:5px;align-items:flex-end}
+  .stchip{font-size:13px;font-weight:700;border-radius:999px;padding:5px 13px;display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
+  .stchip svg{width:14px;height:14px}
+  .stchip.sent{background:var(--gold-wash);color:var(--gold-deep);border:1.5px solid rgba(181,148,69,.55)}
+  .stchip.read{background:var(--read-green);color:#fff}
+  .he-thumbs{display:flex;gap:7px;padding:0 18px 12px;margin-left:6px;flex-wrap:wrap}
+  .he-thumbs .th{width:62px;height:47px;border-radius:8px;overflow:hidden;border:1px solid rgba(0,0,0,.12);flex:none}
+  .he-thumbs .th svg{display:block;width:100%;height:100%}
+  .he-exp{
+    margin:0 18px 16px 24px;min-height:46px;padding:9px 16px;border:1.5px solid var(--line-strong);border-radius:999px;
+    background:#fff;color:var(--forest);font-weight:700;font-size:14.5px;display:inline-flex;gap:8px;align-items:center;
+    transition:all .14s;align-self:flex-start;
+  }
+  .he-exp svg{width:16px;height:16px;transition:transform .18s}
+  .he-exp[aria-expanded="true"] svg{transform:rotate(180deg)}
+  .he-exp:hover{border-color:var(--forest);background:var(--sage-wash)}
+  .he-body{border-top:1px dashed var(--line);background:var(--paper);padding:20px 24px 22px}
+  .he-body[hidden]{display:none}
+  .hist-empty{font-size:16px;color:var(--ink-soft);font-style:italic;padding:20px 4px}
+
+  /* toast */
+  .toast{
+    position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(16px);z-index:300;
+    background:var(--forest-deep);color:#fff;font-weight:600;font-size:15px;padding:13px 20px;
+    border-radius:var(--r-md);box-shadow:0 10px 30px rgba(18,48,42,.35);display:flex;align-items:center;gap:10px;
+    opacity:0;visibility:hidden;transition:opacity .2s,transform .2s,visibility .2s;max-width:min(92vw,560px);
+  }
+  .toast.show{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+  .toast svg{width:17px;height:17px;color:var(--sage-light);flex:none}
+
+  /* ============ RESPONSIVE ============ */
+  @media(max-width:1099px){
+    .composer{grid-template-columns:352px minmax(0,1fr)}
+    .pgrid{grid-template-columns:repeat(3,1fr)}
+  }
+  @media(max-width:999px){
+    .page{padding:22px 16px 60px}
+    .composer{grid-template-columns:1fr}
+    .pgrid{grid-template-columns:repeat(4,1fr)}
+    .mail-photos{grid-template-columns:repeat(2,1fr)}
+  }
+  @media(max-width:799px){
+    .topbar{gap:12px;padding:10px 14px}
+    .demo-tag{display:none}
+    .pgrid{grid-template-columns:repeat(3,1fr)}
+    .after-mail{flex-direction:column;align-items:stretch}
+    .why-row{display:flex;justify-content:center}
+    .approve-bar{width:100%}
+    .approve{width:100%;justify-content:center}
+    .whybtn{justify-content:center}
+    .whypop{bottom:auto;top:calc(100% + 8px)}
+  }
+  @media(max-width:680px){
+    .tb-divider,.feat-label{display:none}
+  }
+  /* phone (~375px): single-column accordion flow per the brief */
+  @media(max-width:560px){
+    .page{padding:16px 10px 56px}
+    .page-head{margin-bottom:16px}
+    .eyebrow{font-size:11.5px}
+    .page-title{font-size:27px}
+    .page-promise{font-size:15.5px}
+    .tabs{width:100%;margin-bottom:16px}
+    .tab{flex:1;justify-content:center;padding:10px 10px;font-size:14.5px}
+    .approve-line{font-size:14.5px;padding:11px 12px}
+    .composer{gap:12px}
+    .card-pad{padding:13px 14px}
+    .rail-hd .ttl{font-size:18px}
+    .step-badge{width:25px;height:25px;font-size:13.5px}
+    .proj-btn .preg{display:none}
+    .sec-head{padding:13px 14px}
+    .sec-head .chev{display:block}
+    .sec-body{padding:2px 14px 14px}
+    .sec-body[data-collapsed="true"]{display:none}
+    .sec-head .ttl{font-size:19px}
+    .pgrid{grid-template-columns:repeat(2,1fr);gap:8px}
+    .ptile .ph-cap{font-size:12.5px}
+    .stage-label{margin-top:2px}
+    .stage-label .ttl{font-size:18px}
+    .ctl-row{padding:12px 13px}
+    .toneseg{width:100%}
+    .tonebtn{flex:1;justify-content:center}
+    .rephrase{width:100%;justify-content:center}
+    .subj-chips{padding:0 13px 13px}
+    .schip{font-size:13.5px;padding:8px 12px}
+    .mailframe{padding:9px;border-radius:var(--r-lg)}
+    .mail-chrome{padding:11px 13px 10px}
+    .mc-row .k{width:44px;font-size:11px}
+    .mail-paper{padding:17px 15px 19px}
+    .mail-body{font-size:16px}
+    .mail-photos{grid-template-columns:repeat(2,1fr);gap:8px}
+    .he-head{padding:13px 13px 10px}
+    .he-status{align-items:flex-start}
+    .he-thumbs{padding:0 13px 10px}
+    .he-exp{margin:0 13px 13px 18px}
+    .he-body{padding:15px 14px 17px}
+    .sched{padding:13px 14px}
+    /* sticky primary CTA: reachable without hunting on a long composer */
+    #viewCompose{padding-bottom:100px}
+    .whypop{bottom:calc(100% + 12px);top:auto}
+    .approve-bar{
+      position:fixed;left:0;right:0;bottom:0;z-index:80;background:var(--cream);
+      padding:11px 14px calc(11px + env(safe-area-inset-bottom));
+      border-top:1.5px solid var(--line);box-shadow:var(--shadow-3);
+    }
+    .toast{bottom:calc(78px + env(safe-area-inset-bottom))}
+  }
+  @media(max-width:379px){
+    .hfchip{padding:8px 12px;font-size:14px}
+    .schip{padding:7px 10px}
+    .ptile .ph-cap{min-height:42px}
+    .page-title{font-size:24.5px}
+  }
+
+  /* prefers-reduced-motion: kill shimmer/typing/shake/transitions;
+     JS also skips the drafting theater and renders instantly */
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{
+      animation-duration:.01ms !important;animation-iteration-count:1 !important;
+      transition-duration:.01ms !important;scroll-behavior:auto !important;
+    }
+    .typing::after{display:none}
+    .ptile:hover{transform:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ TOP BAR ============ -->
+<header class="topbar">
+  <div class="brand">
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>
+    </span>
+    <span class="nm">La<b>Flow</b></span>
+  </div>
+  <span class="tb-divider" aria-hidden="true"></span>
+  <p class="feat-label">Ενημερώσεις Πελατών με AI</p>
+  <span class="spacer"></span>
+  <span class="demo-tag">Demo · Προσομοίωση AI</span>
+</header>
+
+<div class="page">
+
+  <div class="page-head">
+    <p class="eyebrow">LaFlow · Δελτίο έργου προς πελάτη</p>
+    <h1 class="page-title">Ενημερώσεις Πελατών <em>με AI</em></h1>
+    <p class="page-promise">Κρατήστε τους πελάτες σας ενήμερους, με ένα άγγιγμα.</p>
+  </div>
+
+  <!-- tabs -->
+  <div class="tabs" role="tablist" aria-label="Προβολές">
+    <button class="tab" id="tabCompose" role="tab" aria-selected="true" aria-controls="viewCompose" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      Σύνταξη ενημέρωσης
+    </button>
+    <button class="tab" id="tabHistory" role="tab" aria-selected="false" aria-controls="viewHistory" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>
+      Ιστορικό <span class="cnt" id="histCount">0</span>
+    </button>
+  </div>
+
+  <!-- ============ VIEW: COMPOSER ============ -->
+  <section class="view" id="viewCompose" role="tabpanel" aria-labelledby="tabCompose">
+
+    <p class="approve-line">
+      <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 4v5c0 4.6-3 7.7-7 9-4-1.3-7-4.4-7-9V7Z"/><path d="m9 12 2.2 2.2L15.5 10"/></svg></span>
+      <span><b>Εσείς την εγκρίνετε πριν φύγει — πάντα έχετε τον τελευταίο λόγο.</b> Το AI ετοιμάζει το κείμενο από την πρόοδο του έργου· εσείς επιλέγετε τι θα δει ο πελάτης.</span>
+    </p>
+
+    <div class="composer">
+
+      <!-- left rail -->
+      <div class="rail">
+
+        <div class="card">
+          <div class="card-pad">
+            <div class="rail-hd"><span class="step-badge" aria-hidden="true">1</span><span class="ttl">Έργο προς ενημέρωση</span></div>
+            <div class="proj-btns" id="projBtns" role="group" aria-label="Επιλογή έργου"></div>
+          </div>
+          <p class="delta-sum" id="deltaSum"></p>
+        </div>
+
+        <div class="card" id="secDelta">
+          <button class="sec-head" id="deltaHead" type="button" aria-expanded="true" aria-controls="deltaBody">
+            <span class="step-badge" aria-hidden="true">2</span>
+            <span>
+              <span class="ttl">Από την τελευταία ενημέρωση</span>
+              <span class="sub" id="deltaSubCnt" style="display:block"></span>
+            </span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="sec-body" id="deltaBody"></div>
+        </div>
+
+        <div class="card" id="secPhotos">
+          <button class="sec-head" id="photoHead" type="button" aria-expanded="true" aria-controls="photoBody">
+            <span class="step-badge" aria-hidden="true">3</span>
+            <span>
+              <span class="ttl">Φωτογραφίες</span>
+              <span class="sub" id="photoSubCnt" style="display:block"></span>
+            </span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="sec-body" id="photoBody">
+            <div class="pgrid" id="pgrid"></div>
+            <p class="pcap-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16.4" r=".8" fill="currentColor" stroke="none"/></svg>
+              Έως 4 φωτογραφίες ανά ενημέρωση — με τη σειρά που τις επιλέγετε.
+            </p>
+            <div class="ordwrap">
+              <p class="ord-lbl">Σειρά στο email</p>
+              <div class="ordlist" id="ordList"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- right stage -->
+      <div class="stage">
+
+        <div class="stage-label">
+          <span class="step-badge" aria-hidden="true">4</span>
+          <span class="ttl">Προεπισκόπηση &amp; αποστολή</span>
+        </div>
+
+        <div class="card">
+          <div class="ctl-row">
+            <span class="ctl-lbl">Ύφος</span>
+            <div class="toneseg" role="group" aria-label="Ύφος κειμένου">
+              <button class="tonebtn" id="toneFormal" type="button" aria-pressed="false">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-6h6v6"/></svg>
+                Επίσημο
+              </button>
+              <button class="tonebtn" id="toneFriendly" type="button" aria-pressed="false">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5c.9 1.2 2.1 1.9 3.5 1.9s2.6-.7 3.5-1.9"/><path d="M9 10h.01M15 10h.01"/></svg>
+                Φιλικό
+              </button>
+            </div>
+            <button class="rephrase" id="rephraseBtn" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.3"/><path d="M21 3v6h-6"/></svg>
+              <span id="rephraseLbl">Νέα διατύπωση</span>
+            </button>
+          </div>
+          <div class="subj-chips" id="subjChips" role="group" aria-label="Προτάσεις θέματος"></div>
+        </div>
+
+        <div class="mailframe">
+          <div class="mail-chrome">
+            <div class="mc-row"><span class="k">Προς</span><span class="v" id="mailTo"></span></div>
+            <div class="mc-row"><span class="k">Από</span><span class="v">Σωτήρης Παπαδάκης <span class="em">&lt;sotiris@outdoordesign.gr&gt;</span></span></div>
+            <div class="mc-row mc-subj">
+              <span class="k"><label for="subjInput">Θέμα</label></span>
+              <input id="subjInput" type="text" autocomplete="off" spellcheck="false">
+            </div>
+          </div>
+          <div class="mail-paper" id="mailPaper">
+            <div class="draft-veil" aria-hidden="true">
+              <span class="dv-lbl">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/><path d="M19 15l.9 2.4 2.4.6-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.6Z"/></svg>
+                Το AI συντάσσει την ενημέρωση…
+              </span>
+            </div>
+            <div class="mail-body" id="mailBody" aria-label="Προεπισκόπηση email"></div>
+            <div class="mail-sig" id="mailSig"></div>
+          </div>
+        </div>
+
+        <div class="after-mail">
+          <div class="why-row">
+            <button class="whybtn" id="whyBtn" type="button" aria-expanded="false" aria-controls="whyPop">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/></svg>
+              Γιατί αυτό το κείμενο;
+            </button>
+            <div class="whypop" id="whyPop" hidden role="region" aria-label="Επεξήγηση κειμένου"></div>
+          </div>
+          <div class="approve-bar">
+            <button class="approve" id="approveBtn" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-11 11"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg>
+              <span id="approveLbl">Έγκριση &amp; Αποστολή</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ VIEW: HISTORY ============ -->
+  <section class="view" id="viewHistory" role="tabpanel" aria-labelledby="tabHistory" hidden>
+    <div class="hist-top">
+      <div class="card sched">
+        <button class="switch" id="schedToggle" type="button" role="switch" aria-checked="false" aria-labelledby="schedLbl"></button>
+        <div class="sched-main">
+          <p class="sched-t" id="schedLbl">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+            Αυτόματο πρόχειρο κάθε Παρασκευή
+          </p>
+          <p class="sched-d">Κάθε Παρασκευή στις 17:00 το LaFlow θα ετοιμάζει ένα <b>πρόχειρο</b> ενημέρωσης για κάθε ενεργό έργο. Δεν στέλνεται ποτέ μόνο του — περιμένει πάντα τη δική σας έγκριση.</p>
+        </div>
+      </div>
+      <div class="hist-filter" role="group" aria-label="Φίλτρο πελάτη" id="histFilter">
+        <span class="hf-lbl">Πελάτης</span>
+      </div>
+    </div>
+    <div class="hist-list" id="histList"></div>
+  </section>
+
+</div>
+
+<div class="toast" id="toast" role="status">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+/* ============================================================
+   LF-03 REDESIGN — Ενημερώσεις Πελατών με AI — functional MVP
+   (offline). Same engine as the original build: delta checklist
+   + photo picker -> LIVE template stitching into an email
+   preview (4 tone×register voices), + per-client sent-history
+   timeline. Persisted in localStorage under a REDESIGN-scoped
+   key (kept distinct from the original build's key so the two
+   variants never share/overwrite each other's state). Simulated
+   AI only.
+   ============================================================ */
+'use strict';
+
+/* ---------------- Helpers ---------------- */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad2 = n => String(n).padStart(2,'0');
+const ymd = d => d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate());
+const REDUCED = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const pick = (arr, v) => arr[((v % arr.length) + arr.length) % arr.length];
+const fill = (tpl, o) => tpl.replace(/\{(\w+)\}/g, (_, k) => o[k] != null ? o[k] : '');
+const MONTHS_GEN = ['Ιανουαρίου','Φεβρουαρίου','Μαρτίου','Απριλίου','Μαΐου','Ιουνίου','Ιουλίου','Αυγούστου','Σεπτεμβρίου','Οκτωβρίου','Νοεμβρίου','Δεκεμβρίου'];
+/* Greek plural agreement helpers (no number-agreement slips) */
+const nTasks = n => n === 1 ? '1 ολοκληρωμένη εργασία' : n + ' ολοκληρωμένες εργασίες';
+const nPhotos = n => n === 1 ? '1 φωτογραφία' : n + ' φωτογραφίες';
+
+/* ---------------- Inline SVG "photo" scenes (flat vectors, no defs → no id clashes) ---------------- */
+function svgWrap(inner){ return '<svg viewBox="0 0 120 90" preserveAspectRatio="xMidYMid slice" role="img" aria-hidden="true">' + inner + '</svg>'; }
+const SCENES = {
+  bare(){ return '<rect width="120" height="90" fill="#c9d3d7"/><rect y="30" width="120" height="60" fill="#b6a07d"/><path d="M0 30h120" stroke="#9c8460" stroke-width="1.2"/><ellipse cx="34" cy="60" rx="14" ry="4" fill="#a98f69"/><ellipse cx="86" cy="74" rx="18" ry="5" fill="#a98f69"/><circle cx="54" cy="52" r="2.2" fill="#8b7554"/><circle cx="100" cy="50" r="1.8" fill="#8b7554"/><circle cx="20" cy="66" r="2" fill="#8b7554"/>'; },
+  earthworks(){ return '<rect width="120" height="90" fill="#c9d3d7"/><rect y="34" width="120" height="56" fill="#a8916b"/><path d="M0 62 Q22 40 46 58 T92 54 T120 64 V90 H0 Z" fill="#98805b"/><path d="M0 78 Q30 68 60 78 T120 76 V90 H0 Z" fill="#8e7752"/><path d="M10 84h30M52 82h34" stroke="#7c6746" stroke-width="2" stroke-dasharray="5 4"/>'; },
+  paving(){ let t=''; for(let r=0;r<3;r++) for(let c=0;c<5;c++){ const laid=c<3; const x=8+c*22, y=40+r*15; t+='<rect x="'+x+'" y="'+y+'" width="20" height="13" rx="1.5" fill="'+(laid?'#d3ccba':'#9d8763')+'" stroke="'+(laid?'#b9af98':'#8a744f')+'" stroke-width="1"/>'; } return '<rect width="120" height="90" fill="#c9d3d7"/><rect y="28" width="120" height="62" fill="#a8916b"/>'+t; },
+  irrigation(){ let d=''; for(let i=0;i<7;i++){ d+='<circle cx="'+(14+i*15)+'" cy="'+(48+(i%2?4:-2))+'" r="1.8" fill="#3f79ad"/>'; } return '<rect width="120" height="90" fill="#b09a75"/><rect y="34" width="120" height="26" fill="#6f5e44"/><path d="M6 48 Q30 40 54 48 T110 48" stroke="#2b332c" stroke-width="4" fill="none"/>'+d; },
+  materials(){ let t=''; [6,44,82].forEach((x,i)=>{ for(let s=0;s<4+i;s++){ const y=78-s*4; t+='<rect x="'+x+'" y="'+y+'" width="30" height="4.5" fill="'+(i===1?'#c2b79c':'#cdbfa2')+'" stroke="#a9997a" stroke-width=".7"/>'; } }); return '<rect width="120" height="90" fill="#c9d3d7"/><rect y="40" width="120" height="50" fill="#b6a888"/>'+t; },
+  stonewall(){ let s=''; [[4,56,20,12],[26,54,18,14],[47,57,20,11],[69,55,17,13],[88,56,20,12],[110,55,12,13]].forEach(a=>{ s+='<rect x="'+a[0]+'" y="'+a[1]+'" width="'+a[2]+'" height="'+a[3]+'" rx="3" fill="#cbbfa4" stroke="#a99a79" stroke-width="1"/>'; }); let g=''; [14,34,56,78,98].forEach((x,i)=>{ g+='<circle cx="'+x+'" cy="'+(48-(i%2?4:0))+'" r="9" fill="'+(i%2?'#6f8a4a':'#5f7d43')+'"/>'; }); return '<rect width="120" height="90" fill="#cdd6d3"/><rect y="46" width="120" height="44" fill="#a89066"/>'+g+s; },
+  planting(){ let g=''; for(let r=0;r<3;r++) for(let c=0;c<6;c++){ const x=12+c*18, y=46+r*14; g+='<circle cx="'+x+'" cy="'+y+'" r="6.5" fill="'+(['#5f7d43','#6f8a4a','#7d9a54'][r])+'"/>'; } return '<rect width="120" height="90" fill="#c9d3d7"/><rect y="34" width="120" height="56" fill="#9a8460"/>'+g; },
+  plan(){ let g=''; for(let i=1;i<8;i++){ g+='<path d="M'+(i*15)+' 0V90" stroke="#2c496b" stroke-width=".6"/>'; } for(let i=1;i<6;i++){ g+='<path d="M0 '+(i*15)+'H120" stroke="#2c496b" stroke-width=".6"/>'; } return '<rect width="120" height="90" fill="#1c3350"/>'+g+'<rect x="18" y="20" width="70" height="48" fill="none" stroke="#e0e9f4" stroke-width="1.4"/><path d="M18 46h40v22" stroke="#e0e9f4" stroke-width="1.2" fill="none"/><circle cx="74" cy="38" r="11" fill="none" stroke="#9db6d4" stroke-width="1"/><path d="M104 12l3.5 9-3.5-2.4-3.5 2.4z" fill="#e0e9f4"/>'; },
+  inspection(){ return '<rect width="120" height="90" fill="#c9d3d7"/><rect y="46" width="120" height="44" fill="#9a8a64"/><g transform="rotate(-6 60 45)"><rect x="40" y="18" width="42" height="54" rx="3" fill="#f4efe2" stroke="#b7ac90" stroke-width="1.4"/><rect x="52" y="14" width="18" height="8" rx="2" fill="#8a744f"/><path d="M46 32h30M46 40h30M46 48h22" stroke="#b7ac90" stroke-width="2"/><path d="M46 58l4 4 8-9" stroke="#5f7d43" stroke-width="2.6" fill="none"/></g>'; },
+  problem(){ return '<rect width="120" height="90" fill="#c9d3d7"/><rect y="40" width="120" height="50" fill="#8f7c58"/><ellipse cx="70" cy="70" rx="34" ry="12" fill="#5b83a6" opacity=".85"/><ellipse cx="70" cy="68" rx="22" ry="7" fill="#7ba0bf" opacity=".7"/><path d="M30 52l16 26H14z" fill="#e0b64a" stroke="#a9832b" stroke-width="1.4"/><path d="M30 60v9" stroke="#5a4415" stroke-width="2.4"/><circle cx="30" cy="74" r="1.5" fill="#5a4415"/>'; },
+  lighting(){ let l=''; [24,60,96].forEach(x=>{ l+='<circle cx="'+x+'" cy="30" r="10" fill="#f4e2a0" opacity=".45"/><circle cx="'+x+'" cy="30" r="4" fill="#fdf2c4"/><rect x="'+(x-1.5)+'" y="30" width="3" height="34" fill="#3a4a40"/>'; }); return '<rect width="120" height="90" fill="#25322c"/><rect y="60" width="120" height="30" fill="#1a231e"/>'+l; },
+  trees(){ let t=''; [24,60,96].forEach(x=>{ t+='<rect x="'+(x-8)+'" y="60" width="16" height="14" rx="2" fill="#8a5a34"/><rect x="'+(x-1.6)+'" y="40" width="3.2" height="22" fill="#7c5a3a"/><circle cx="'+(x-7)+'" cy="40" r="8" fill="#6f8a4a"/><circle cx="'+(x+7)+'" cy="40" r="8" fill="#6f8a4a"/><circle cx="'+x+'" cy="33" r="12" fill="#5f7d43"/>'; }); return '<rect width="120" height="90" fill="#c9d3d7"/><rect y="70" width="120" height="20" fill="#a8926f"/>'+t; }
+};
+function photoSVG(id){ return svgWrap((SCENES[id] || SCENES.bare)()); }
+
+/* ---------------- Seeded universe (2 clients / 2 projects in Κατασκευή) ---------------- */
+const PROJECTS = [
+  {
+    id:'ekali', short:'Βίλα Εκάλη', name:'Βίλα Εκάλη', register:'ekali', defaultTone:'friendly',
+    clientName:'κα Ελένη Δημητρίου', clientEmail:'e.dimitriou@example.gr', color:'#1a3c34',
+    subjects:['Η αυλή σας προχωρά — φωτογραφίες προόδου','Εβδομαδιαία ενημέρωση για τον κήπο σας','Περάσαμε στην κατασκευή!'],
+    pay:{ label:'τη Β΄ δόση', amt:'6.400 €' },
+    deltas:[
+      { id:'ek-phase', type:'phase', from:'Έγκριση', to:'Κατασκευή', title:'Το έργο πέρασε στη φάση «Κατασκευή»' },
+      { id:'ek-t1', type:'task', title:'Ολοκλήρωση εκσκαφών και χωματουργικών' },
+      { id:'ek-t2', type:'task', title:'Διάστρωση υπόβασης στους διαδρόμους' },
+      { id:'ek-t3', type:'task', title:'Τοποθέτηση δικτύου άρδευσης — ζώνη Α' },
+      { id:'ek-t4', type:'task', title:'Πλακόστρωση αυλής με πλάκες Καρύστου' },
+      { id:'ek-t5', type:'task', title:'Κατασκευή λιθόκτιστων παρτεριών' },
+      { id:'ek-t6', type:'task', title:'Παραγγελία υλικών από προμηθευτή', internal:true },
+      { id:'ek-t7', type:'task', title:'Τοποθέτηση προκατασκευασμένων κρασπέδων' },
+      { id:'ek-t8', type:'task', title:'Προετοιμασία εδάφους για τις φυτεύσεις' },
+      { id:'ek-pay', type:'payment', title:'Έκδοση τιμολογίου Β΄ δόσης (6.400 €)' }
+    ],
+    photos:[
+      { id:'ek-p1', tag:'Πριν',    cap:'Ο χώρος πριν την επέμβαση', scene:'bare' },
+      { id:'ek-p2', tag:'Πρόοδος', cap:'Πλακόστρωση αυλής σε εξέλιξη', scene:'paving' },
+      { id:'ek-p3', tag:'Πρόοδος', cap:'Δίκτυο άρδευσης πριν την επίχωση', scene:'irrigation' },
+      { id:'ek-p4', tag:'Υλικά',   cap:'Πλάκες Καρύστου — παραλαβή', scene:'materials' },
+      { id:'ek-p5', tag:'Μετά',    cap:'Λιθόκτιστα παρτέρια ολοκληρωμένα', scene:'stonewall' },
+      { id:'ek-p6', tag:'Πρόοδος', cap:'Φύτευση παρτεριών σε εξέλιξη', scene:'planting' },
+      { id:'ek-p7', tag:'Σχέδιο',  cap:'Κάτοψη φύτευσης κήπου', scene:'plan' },
+      { id:'ek-p8', tag:'Αυτοψία', cap:'Έλεγχος εργασιών επί τόπου', scene:'inspection' }
+    ],
+    defaultSel:['ek-phase','ek-t1','ek-t2','ek-t3','ek-t4','ek-t5','ek-t7','ek-t8','ek-pay'],
+    defaultOrder:['ek-p2','ek-p3','ek-p5']
+  },
+  {
+    id:'marousi', short:'Campus Μαρούσι', name:'Εταιρικό campus Μαρούσι', register:'marousi', defaultTone:'formal',
+    clientName:'Alpha Real Estate Α.Ε.', clientEmail:'projects@alpha-re.gr', color:'#a05526',
+    subjects:['Πρόοδος έργου — φωτογραφίες εργοταξίου','Εβδομαδιαία ενημέρωση έργου — Campus Μαρούσι','Το έργο πέρασε στη φάση της κατασκευής'],
+    pay:{ label:'την Α΄ πιστοποίηση εργασιών', amt:'24.000 €' },
+    deltas:[
+      { id:'ma-phase', type:'phase', from:'Έγκριση', to:'Κατασκευή', title:'Το έργο πέρασε στη φάση «Κατασκευή»' },
+      { id:'ma-t1', type:'task', title:'Εγκατάσταση εργοταξίου και περίφραξη χώρου' },
+      { id:'ma-t2', type:'task', title:'Εκσκαφές κεντρικής πλατείας του campus' },
+      { id:'ma-t3', type:'task', title:'Διάστρωση οπλισμένου σκυροδέματος στους διαδρόμους' },
+      { id:'ma-t4', type:'task', title:'Υπόγειο δίκτυο άρδευσης — κεντρικές γραμμές' },
+      { id:'ma-t5', type:'task', title:'Τοποθέτηση περιμετρικού φωτισμού LED' },
+      { id:'ma-t6', type:'task', title:'Παραλαβή δέντρων μεγάλου μεγέθους' },
+      { id:'ma-t7', type:'task', title:'Εσωτερική σύσκεψη συντονισμού συνεργείων', internal:true },
+      { id:'ma-t8', type:'task', title:'Διαμόρφωση ζώνης εισόδου' },
+      { id:'ma-pay', type:'payment', title:'Α΄ πιστοποίηση εργασιών (24.000 €)' }
+    ],
+    photos:[
+      { id:'ma-p1', tag:'Αυτοψία', cap:'Αποτύπωση υφιστάμενου χώρου', scene:'inspection' },
+      { id:'ma-p2', tag:'Σχέδιο',  cap:'Γενική διάταξη campus', scene:'plan' },
+      { id:'ma-p3', tag:'Πρόοδος', cap:'Εκσκαφές κεντρικής πλατείας', scene:'earthworks' },
+      { id:'ma-p4', tag:'Πρόοδος', cap:'Διάστρωση διαδρόμων', scene:'paving' },
+      { id:'ma-p5', tag:'Υλικά',   cap:'Παραλαβή δέντρων μεγάλου μεγέθους', scene:'trees' },
+      { id:'ma-p6', tag:'Πρόοδος', cap:'Τοποθέτηση φωτισμού LED', scene:'lighting' },
+      { id:'ma-p7', tag:'Πρόβλημα',cap:'Σημείο συγκέντρωσης όμβριων', scene:'problem' },
+      { id:'ma-p8', tag:'Μετά',    cap:'Ζώνη εισόδου διαμορφωμένη', scene:'planting' }
+    ],
+    defaultSel:['ma-phase','ma-t1','ma-t2','ma-t3','ma-t4','ma-t5','ma-t6','ma-t8','ma-pay'],
+    defaultOrder:['ma-p3','ma-p4','ma-p2']
+  }
+];
+const projById = id => PROJECTS.find(p => p.id === id);
+const SIG_HTML = '<p class="sn">Σωτήρης Παπαδάκης</p><p class="sd">Outdoor Design — Αρχιτεκτονική Τοπίου<br>Γέρακας, Αττική · τηλ. 210 6612 480<br>outdoordesign.gr</p>';
+
+/* ---------------- Template voices (register × tone), variant-shuffled by «Νέα διατύπωση» ---------------- */
+const GREET = {
+  ekali:   { formal:['Αγαπητή κα Δημητρίου,','Αξιότιμη κα Δημητρίου,'],
+             friendly:['Καλησπέρα σας κα Δημητρίου,','Καλημέρα κα Δημητρίου,','Αγαπητή κα Δημητρίου,'] },
+  marousi: { formal:['Αξιότιμοι κύριοι,','Προς την ομάδα της Alpha Real Estate,','Αξιότιμοι συνεργάτες,'],
+             friendly:['Αγαπητοί συνεργάτες,','Καλησπέρα σας,'] }
+};
+const INTRO = {
+  ekali: {
+    formal:['Σας ενημερώνω για την πορεία των εργασιών στον κήπο της κατοικίας σας στην Εκάλη.',
+            'Με την παρούσα σας ενημερώνω για την εξέλιξη του έργου στην κατοικία σας στην Εκάλη.'],
+    friendly:['Ήθελα να σας κρατήσω ενήμερη για το πώς προχωράει ο κήπος σας στην Εκάλη — και έχουμε ωραία νέα.',
+              'Μια σύντομη ενημέρωση για το πώς πηγαίνει ο κήπος σας στην Εκάλη αυτές τις μέρες.'] },
+  marousi: {
+    formal:['Σας αποστέλλουμε την εβδομαδιαία ενημέρωση για την εξέλιξη του έργου διαμόρφωσης του εταιρικού campus στο Μαρούσι.',
+            'Με την παρούσα σας ενημερώνουμε για την πρόοδο των εργασιών στο εταιρικό campus στο Μαρούσι.'],
+    friendly:['Μια σύντομη ενημέρωση για το πώς προχωράει το έργο στο campus σας στο Μαρούσι.',
+              'Θέλαμε να σας κρατήσουμε ενήμερους για την πορεία του έργου στο campus στο Μαρούσι.'] }
+};
+const PHASE = {
+  formal:['Το έργο πέρασε επίσημα στη φάση «{to}».','Ολοκληρώθηκε η φάση «{from}» και το έργο εισήλθε στη φάση «{to}».'],
+  friendly:['Και το πιο σημαντικό: περάσαμε επίσημα στη φάση «{to}»!','Μπήκαμε πλέον στη φάση «{to}» — το έργο παίρνει μορφή!']
+};
+const TLEAD = {
+  formal:['Την περασμένη περίοδο ολοκληρώθηκαν οι παρακάτω εργασίες:','Από την προηγούμενη ενημέρωση ολοκληρώθηκαν τα εξής:'],
+  friendly:['Να τι προλάβαμε αυτές τις μέρες:','Δείτε τι κάναμε από την τελευταία φορά:']
+};
+const PAY = {
+  formal:['Σε ό,τι αφορά τα οικονομικά, εκδόθηκε το τιμολόγιο για {label} ({amt}).','Επισυνάπτεται το τιμολόγιο που αφορά {label}, ποσού {amt}.'],
+  friendly:['Σας έστειλα επίσης το τιμολόγιο για {label} ({amt}).','Στα εισερχόμενά σας θα βρείτε και το τιμολόγιο για {label} ({amt}).']
+};
+const PLEAD = {
+  formal:['Παραθέτουμε ενδεικτικές φωτογραφίες από την πρόοδο των εργασιών:','Ακολουθούν φωτογραφίες από την εξέλιξη του έργου:'],
+  friendly:['Και μερικές φωτογραφίες για να δείτε την πρόοδο με τα μάτια σας:','Ορίστε και μερικές φωτογραφίες από το εργοτάξιο:']
+};
+const CLOSE = {
+  ekali:   { formal:['Παραμένω στη διάθεσή σας για οποιαδήποτε διευκρίνιση.','Για οποιαδήποτε απορία, είμαι στη διάθεσή σας.'],
+             friendly:['Οτιδήποτε χρειαστείτε, είμαι εδώ. Καλή σας εβδομάδα!','Μη διστάσετε να με καλέσετε για οτιδήποτε. Να έχετε μια όμορφη εβδομάδα!'] },
+  marousi: { formal:['Παραμένουμε στη διάθεσή σας για οποιαδήποτε διευκρίνιση ή συνάντηση.','Είμαστε στη διάθεσή σας για κάθε περαιτέρω πληροφορία.'],
+             friendly:['Για οτιδήποτε χρειαστείτε, είμαστε στη διάθεσή σας. Καλή συνέχεια!','Στη διάθεσή σας για οποιαδήποτε διευκρίνιση — καλή συνέχεια στην ομάδα!'] }
+};
+
+/* ---------------- Draft model (the reactive template stitcher) ---------------- */
+function buildModel(proj, tone, variant, selSet, order){
+  const reg = proj.register;
+  const tasks = proj.deltas.filter(d => d.type === 'task' && selSet.has(d.id));
+  const phase = proj.deltas.find(d => d.type === 'phase' && selSet.has(d.id)) || null;
+  const pay   = proj.deltas.find(d => d.type === 'payment' && selSet.has(d.id)) || null;
+  const photos = order.map(id => proj.photos.find(p => p.id === id)).filter(Boolean).slice(0, 4);
+  return {
+    greeting: pick(GREET[reg][tone], variant),
+    intro: pick(INTRO[reg][tone], variant),
+    phase: phase ? { id: phase.id, text: fill(pick(PHASE[tone], variant), { from: phase.from, to: phase.to }) } : null,
+    tasksLead: tasks.length ? pick(TLEAD[tone], variant) : null,
+    tasks: tasks.map(t => ({ id: t.id, text: t.title })),
+    payment: pay ? { id: pay.id, text: fill(pick(PAY[tone], variant), proj.pay) } : null,
+    photosLead: photos.length ? pick(PLEAD[tone], variant) : null,
+    photos: photos.map(p => ({ id: p.id, tag: p.tag, cap: p.cap, scene: p.scene })),
+    closing: pick(CLOSE[reg][tone], variant),
+    valediction: tone === 'formal' ? 'Με εκτίμηση,' : 'Με φιλικούς χαιρετισμούς,'
+  };
+}
+function modelBodyHtml(m){
+  let h = '';
+  h += '<p>' + esc(m.greeting) + '</p>';
+  h += '<p data-typ>' + esc(m.intro) + '</p>';
+  if(m.phase) h += '<p><span class="sent" data-src="d-' + m.phase.id + '">' + esc(m.phase.text) + '</span></p>';
+  if(m.tasksLead){
+    h += '<p>' + esc(m.tasksLead) + '</p><ul class="mail-tasks">';
+    m.tasks.forEach(t => { h += '<li><span class="sent" data-src="d-' + t.id + '">' + esc(t.text) + '</span></li>'; });
+    h += '</ul>';
+  }
+  if(m.payment) h += '<p><span class="sent" data-src="d-' + m.payment.id + '">' + esc(m.payment.text) + '</span></p>';
+  if(m.photosLead){
+    h += '<p>' + esc(m.photosLead) + '</p><div class="mail-photos">';
+    m.photos.forEach(p => { h += '<div class="mp-cell" data-src="ph-' + p.id + '">' + photoSVG(p.scene) + '<div class="mp-cap"><b>' + esc(p.cap) + '</b><span class="tg">' + esc(p.tag) + '</span></div></div>'; });
+    h += '</div>';
+  }
+  h += '<p>' + esc(m.closing) + '</p>';
+  h += '<p class="mail-vale">' + esc(m.valediction) + '</p>';
+  return h;
+}
+
+/* ---------------- State + persistence ---------------- */
+const STORAGE_KEY = 'laflow-lf03-client-updates-redesign-v1';
+function defaultCS(proj){
+  return { tone: proj.defaultTone, variant: 0, subject: proj.subjects[1], subjectChip: 1,
+           sel: new Set(proj.defaultSel), order: proj.defaultOrder.slice() };
+}
+const state = {
+  tab: 'compose',
+  projId: PROJECTS[0].id,
+  byProj: {},
+  histFilter: 'all',
+  scheduled: false,
+  history: [],
+  busy: false
+};
+PROJECTS.forEach(p => { state.byProj[p.id] = defaultCS(p); });
+const curProj = () => projById(state.projId);
+const curCS = () => state.byProj[state.projId];
+
+function seedHistory(){
+  const now = new Date();
+  const at = (daysAgo, h, mi) => { const d = new Date(now); d.setDate(d.getDate() - daysAgo); return { iso: ymd(d), time: pad2(h) + ':' + pad2(mi) }; };
+  const snap = (projId, tone, variant, subjIdx, selIds, order, status, when, readWhen) => {
+    const p = projById(projId);
+    const m = buildModel(p, tone, variant, new Set(selIds), order);
+    return { id: 'seed-' + projId + '-' + when.iso, projId, clientName: p.clientName, clientEmail: p.clientEmail,
+             short: p.short, color: p.color, subject: p.subjects[subjIdx], tone, dateISO: when.iso, time: when.time,
+             status, readRel: readWhen || null, model: m, photos: m.photos };
+  };
+  return [
+    /* newest — read */
+    snap('ekali','friendly',0,0,
+         ['ek-t1','ek-t2','ek-t4','ek-pay'],['ek-p2','ek-p3','ek-p5','ek-p4'],
+         'read', at(2,18,32), 'ανοίχτηκε το επόμενο πρωί'),
+    /* middle — sent */
+    snap('marousi','formal',0,1,
+         ['ma-t1','ma-t2','ma-t3'],['ma-p1','ma-p2','ma-p3'],
+         'sent', at(5,17,10), null),
+    /* older — read */
+    snap('ekali','friendly',1,2,
+         ['ek-phase','ek-t1'],['ek-p1','ek-p2'],
+         'read', at(16,16,45), 'ανοίχτηκε αυθημερόν')
+  ];
+}
+
+function save(){
+  try{
+    const byProj = {};
+    Object.keys(state.byProj).forEach(id => {
+      const cs = state.byProj[id];
+      byProj[id] = { tone: cs.tone, variant: cs.variant, subject: cs.subject, subjectChip: cs.subjectChip,
+                     sel: Array.from(cs.sel), order: cs.order.slice() };
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      v: 1, projId: state.projId, histFilter: state.histFilter, scheduled: state.scheduled,
+      byProj, history: state.history
+    }));
+  }catch(e){ /* storage unavailable → in-memory only */ }
+}
+function load(){
+  let data = null;
+  try{ const raw = localStorage.getItem(STORAGE_KEY); if(raw) data = JSON.parse(raw); }catch(e){ data = null; }
+  if(!data || data.v !== 1){ state.history = seedHistory(); save(); return; }
+  if(data.projId && projById(data.projId)) state.projId = data.projId;
+  if(data.histFilter === 'all' || projById(data.histFilter)) state.histFilter = data.histFilter;
+  state.scheduled = !!data.scheduled;
+  PROJECTS.forEach(p => {
+    const d = data.byProj && data.byProj[p.id];
+    const cs = defaultCS(p);
+    if(d){
+      if(d.tone === 'formal' || d.tone === 'friendly') cs.tone = d.tone;
+      if(Number.isInteger(d.variant)) cs.variant = d.variant;
+      if(typeof d.subject === 'string') cs.subject = d.subject;
+      if(d.subjectChip === null || Number.isInteger(d.subjectChip)) cs.subjectChip = d.subjectChip;
+      if(Array.isArray(d.sel)) cs.sel = new Set(d.sel.filter(x => p.deltas.some(dd => dd.id === x)));
+      if(Array.isArray(d.order)) cs.order = d.order.filter(x => p.photos.some(pp => pp.id === x)).slice(0, 4);
+    }
+    state.byProj[p.id] = cs;
+  });
+  state.history = Array.isArray(data.history) ? data.history.filter(h => h && h.model && projById(h.projId)) : seedHistory();
+}
+
+/* ---------------- Typing theater (latency) ---------------- */
+let draftToken = 0;
+let typingTimers = [];
+function clearTyping(){ typingTimers.forEach(clearInterval); typingTimers = []; }
+function typeInto(el, text, speed, myToken){
+  el.classList.add('typing');
+  let i = 0;
+  const iv = setInterval(() => {
+    if(myToken !== draftToken){ clearInterval(iv); return; }
+    i++;
+    el.textContent = text.slice(0, i);
+    if(i >= text.length){ clearInterval(iv); el.classList.remove('typing'); }
+  }, speed);
+  typingTimers.push(iv);
+}
+
+/* ---------------- Composer render ---------------- */
+function renderProjBtns(){
+  const wrap = $('#projBtns');
+  wrap.innerHTML = PROJECTS.map(p => {
+    const on = p.id === state.projId;
+    const reg = p.register === 'marousi' ? 'Εταιρικό' : 'Ιδιώτης';
+    return '<button type="button" class="proj-btn" data-pid="' + p.id + '" style="--pc:' + p.color + '" aria-pressed="' + on + '">' +
+      '<span class="pdot" aria-hidden="true"></span>' +
+      '<span><span class="pn">' + esc(p.name) + '</span><span class="pcl">' + esc(p.clientName) + '</span></span>' +
+      '<span class="preg">' + reg + '</span></button>';
+  }).join('');
+}
+const DTYPE = {
+  task:    { cls:'',    lbl:'Εργασία', ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>' },
+  phase:   { cls:'ph',  lbl:'Αλλαγή φάσης', ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h13M13 6l6 6-6 6"/></svg>' },
+  payment: { cls:'pay', lbl:'Πληρωμή', ic:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.4"/></svg>' }
+};
+const CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 6"/></svg>';
+function renderDelta(){
+  const p = curProj(), cs = curCS();
+  $('#deltaBody').innerHTML = p.deltas.map(d => {
+    const on = cs.sel.has(d.id);
+    const dt = DTYPE[d.type];
+    const note = d.internal ? '<span class="dnote">· εσωτερική, δεν αφορά τον πελάτη</span>' : '';
+    return '<label class="ditem"><input type="checkbox" data-did="' + d.id + '"' + (on ? ' checked' : '') + '>' +
+      '<span class="dbox" aria-hidden="true">' + CHECK_SVG + '</span>' +
+      '<span class="dmain"><span class="dtitle">' + esc(d.title) + '</span>' +
+      '<span class="dmeta"><span class="dtype ' + dt.cls + '">' + dt.ic + dt.lbl + '</span>' + note + '</span></span></label>';
+  }).join('');
+}
+function renderPhotos(){
+  const p = curProj(), cs = curCS();
+  $('#pgrid').innerHTML = p.photos.map(ph => {
+    const idx = cs.order.indexOf(ph.id);
+    const on = idx >= 0;
+    const ord = on ? '<span class="ph-ord" aria-hidden="true">' + (idx + 1) + '</span>' : '';
+    return '<button type="button" class="ptile" data-phid="' + ph.id + '" aria-pressed="' + on + '" aria-label="' +
+      esc(ph.cap) + ' — ' + esc(ph.tag) + (on ? ', επιλεγμένη #' + (idx + 1) : '') + '">' +
+      '<span class="ph-art">' + photoSVG(ph.scene) + '</span>' +
+      '<span class="ph-tag">' + esc(ph.tag) + '</span>' + ord +
+      '<span class="ph-cap">' + esc(ph.cap) + '</span></button>';
+  }).join('');
+}
+function renderOrder(){
+  const p = curProj(), cs = curCS();
+  const list = $('#ordList');
+  if(!cs.order.length){ list.innerHTML = '<p class="ordempty">Καμία φωτογραφία επιλεγμένη ακόμη — πατήστε μία παραπάνω.</p>'; return; }
+  list.innerHTML = cs.order.map((id, i) => {
+    const ph = p.photos.find(x => x.id === id); if(!ph) return '';
+    const up = i === 0, down = i === cs.order.length - 1;
+    return '<div class="ordrow"><span class="oi" aria-hidden="true">' + (i + 1) + '</span>' +
+      '<span class="oa" aria-hidden="true">' + photoSVG(ph.scene) + '</span>' +
+      '<span class="on">' + esc(ph.cap) + '</span>' +
+      '<button type="button" class="ordbtn" data-move="up" data-phid="' + id + '"' + (up ? ' disabled' : '') + ' aria-label="Μετακίνηση πάνω">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg></button>' +
+      '<button type="button" class="ordbtn" data-move="down" data-phid="' + id + '"' + (down ? ' disabled' : '') + ' aria-label="Μετακίνηση κάτω">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></div>';
+  }).join('');
+}
+function syncTone(){
+  const cs = curCS();
+  $('#toneFormal').setAttribute('aria-pressed', String(cs.tone === 'formal'));
+  $('#toneFriendly').setAttribute('aria-pressed', String(cs.tone === 'friendly'));
+}
+function renderSubjChips(){
+  const p = curProj(), cs = curCS();
+  const ic = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/></svg>';
+  $('#subjChips').innerHTML = p.subjects.map((s, i) =>
+    '<button type="button" class="schip" data-subj="' + i + '" aria-pressed="' + (cs.subjectChip === i) + '">' + ic + esc(s) + '</button>'
+  ).join('');
+}
+function updateCounts(){
+  const p = curProj(), cs = curCS();
+  const total = p.deltas.length;
+  const selN = p.deltas.filter(d => cs.sel.has(d.id)).length;
+  $('#deltaSubCnt').textContent = selN + ' από ' + total + ' επιλεγμένα';
+  $('#photoSubCnt').textContent = cs.order.length + ' από 4 επιλεγμένες';
+  const taskN = p.deltas.filter(d => d.type === 'task' && cs.sel.has(d.id)).length;
+  const bits = [nTasks(taskN)];
+  if(cs.sel.has(p.deltas.find(d => d.type === 'phase').id)) bits.push('αλλαγή φάσης');
+  if(cs.order.length) bits.push(nPhotos(cs.order.length));
+  $('#deltaSum').innerHTML = 'Από την τελευταία ενημέρωση: <b>' + esc(bits.join(' · ')) + '</b>.';
+  $('#histCount').textContent = state.history.length;
+}
+function renderComposerChrome(){
+  renderProjBtns(); renderDelta(); renderPhotos(); renderOrder();
+  syncTone(); renderSubjChips();
+  $('#subjInput').value = curCS().subject;
+  updateCounts(); syncAccordion();
+}
+function renderDraft(opts){
+  opts = opts || {};
+  const p = curProj(), cs = curCS();
+  const m = buildModel(p, cs.tone, cs.variant, cs.sel, cs.order);
+  $('#mailBody').innerHTML = modelBodyHtml(m);
+  $('#mailSig').innerHTML = SIG_HTML;
+  $('#mailTo').innerHTML = esc(p.clientName) + ' <span class="em">&lt;' + esc(p.clientEmail) + '&gt;</span>';
+  if(opts.type && !REDUCED()){
+    const el = $('#mailBody [data-typ]');
+    if(el){ const full = el.textContent; el.textContent = ''; typeInto(el, full, 16, opts.token); }
+  }
+  if(!$('#whyPop').hidden) renderWhy();
+}
+function draftWithTheater(){
+  draftToken++; const my = draftToken;
+  clearTyping();
+  const paper = $('#mailPaper');
+  if(REDUCED()){
+    setBusy(true);
+    renderDraft();
+    setTimeout(() => { if(my === draftToken) setBusy(false); }, 200);
+    return;
+  }
+  setBusy(true);
+  paper.classList.add('busy');
+  setTimeout(() => {
+    if(my !== draftToken){ return; }
+    paper.classList.remove('busy');
+    renderDraft({ type: true, token: my });
+    setBusy(false);
+  }, 720);
+}
+function setBusy(b){
+  state.busy = b;
+  ['#toneFormal','#toneFriendly','#rephraseBtn','#approveBtn'].forEach(s => { const el = $(s); if(el) el.disabled = b; });
+  $$('#projBtns .proj-btn').forEach(el => { el.disabled = b; });
+  $$('#deltaBody input').forEach(el => { el.disabled = b; });
+  $$('#pgrid .ptile').forEach(el => { el.disabled = b; });
+  $$('#ordList .ordbtn').forEach(el => { if(b) el.disabled = true; });
+  if(!b) renderOrder(); /* restores correct up/down disabled states */
+  $('#rephraseLbl').textContent = b && !REDUCED() ? 'Σύνταξη…' : 'Νέα διατύπωση';
+}
+
+/* ---------------- Why-this-text popover ---------------- */
+function renderWhy(){
+  const p = curProj(), cs = curCS();
+  const tasks = p.deltas.filter(d => d.type === 'task' && cs.sel.has(d.id));
+  const phase = p.deltas.find(d => d.type === 'phase' && cs.sel.has(d.id));
+  const pay = p.deltas.find(d => d.type === 'payment' && cs.sel.has(d.id));
+  const inc = [];
+  if(tasks.length) inc.push(nTasks(tasks.length));
+  if(phase) inc.push('η αλλαγή φάσης σε «' + phase.to + '»');
+  if(pay) inc.push('το ' + (p.id === 'marousi' ? 'στοιχείο της Α΄ πιστοποίησης' : 'τιμολόγιο της Β΄ δόσης'));
+  if(cs.order.length){
+    const tags = [...new Set(cs.order.map(id => p.photos.find(ph => ph.id === id)).filter(Boolean).map(ph => ph.tag))];
+    inc.push(nPhotos(cs.order.length) + ' (' + tags.join(', ') + ')');
+  }
+  const excluded = p.deltas.filter(d => (d.type === 'task' || d.type === 'payment') && !cs.sel.has(d.id));
+  let h = '<h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/></svg>Τι έβαλε και τι άφησε έξω το AI</h3>';
+  h += '<h4>Συμπεριλήφθηκαν</h4><ul>';
+  if(inc.length) inc.forEach(x => { h += '<li>' + esc(x) + '</li>'; });
+  else h += '<li class="q">Τίποτα ακόμη — επιλέξτε στοιχεία από αριστερά.</li>';
+  h += '</ul>';
+  h += '<h4>Εξαιρέθηκαν</h4><ul>';
+  if(excluded.length) excluded.forEach(d => {
+    const why = d.internal ? ' (εσωτερική εργασία)' : '';
+    h += '<li class="exc">η ' + (d.type === 'payment' ? 'πληρωμή' : 'εργασία') + ' «' + esc(d.title) + '»<span class="q">' + why + '</span></li>';
+  });
+  else h += '<li class="q">Τίποτα — όλα τα στοιχεία περιλαμβάνονται.</li>';
+  h += '</ul>';
+  const tone = cs.tone === 'formal' ? 'Επίσημο' : 'Φιλικό';
+  const regTxt = p.id === 'marousi' ? 'εταιρικό πελάτη' : 'ιδιώτη πελάτη';
+  h += '<p class="whynote">Ύφος: <b>' + tone + '</b> · προσαρμογή για ' + regTxt + '. Το κείμενο ξαναγράφεται αυτόματα σε κάθε αλλαγή — εσείς κρατάτε τον τελευταίο λόγο.</p>';
+  $('#whyPop').innerHTML = h;
+}
+function toggleWhy(force){
+  const pop = $('#whyPop'), btn = $('#whyBtn');
+  const show = force != null ? force : pop.hidden;
+  if(show){ renderWhy(); pop.hidden = false; btn.setAttribute('aria-expanded', 'true'); }
+  else { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); }
+}
+
+/* ---------------- Flash the sentence a toggle controls ---------------- */
+function flashSrc(src){
+  const el = $('#mailBody [data-src="' + src + '"]');
+  if(!el) return;
+  el.classList.add('sent-in');
+  setTimeout(() => el.classList.remove('sent-in'), 900);
+}
+
+/* ---------------- History render ---------------- */
+function fmtDate(iso, time){
+  const p = iso.split('-').map(Number);
+  return p[2] + ' ' + MONTHS_GEN[p[1]-1] + ' ' + p[0] + ' · ' + time;
+}
+function statusChip(entry){
+  if(entry.status === 'read'){
+    return '<span class="stchip read"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="2.6"/></svg>Αναγνώστηκε</span>';
+  }
+  return '<span class="stchip sent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 6"/></svg>Εστάλη</span>';
+}
+function renderHistory(){
+  /* filter chips */
+  const hf = $('#histFilter');
+  hf.querySelectorAll('.hfchip').forEach(n => n.remove());
+  let chips = '<button type="button" class="hfchip" data-hf="all" aria-pressed="' + (state.histFilter === 'all') + '">Όλοι</button>';
+  PROJECTS.forEach(p => {
+    chips += '<button type="button" class="hfchip" data-hf="' + p.id + '" style="--pc:' + p.color + '" aria-pressed="' + (state.histFilter === p.id) + '">' +
+      '<span class="dot" aria-hidden="true"></span>' + esc(p.clientName) + '</button>';
+  });
+  hf.insertAdjacentHTML('beforeend', chips);
+
+  $('#schedToggle').setAttribute('aria-checked', String(state.scheduled));
+
+  const list = state.history.filter(e => state.histFilter === 'all' || e.projId === state.histFilter);
+  const wrap = $('#histList');
+  if(!list.length){ wrap.innerHTML = '<p class="hist-empty">Δεν υπάρχουν σταλμένες ενημερώσεις για αυτό το φίλτρο.</p>'; return; }
+  wrap.innerHTML = list.map(e => {
+    const thumbs = e.photos.slice(0, 4).map(ph => '<span class="th">' + photoSVG(ph.scene) + '</span>').join('');
+    const readNote = e.status === 'read' && e.readRel ? '<span class="he-date"> · ' + esc(e.readRel) + '</span>' : '';
+    const body = modelBodyHtml(e.model);
+    return '<div class="card hentry" data-hid="' + e.id + '">' +
+      '<div class="he-head" style="--pc:' + e.color + '">' +
+        '<div class="he-main"><span class="he-proj"><i aria-hidden="true"></i>' + esc(e.clientName) + ' · ' + esc(e.short) + '</span>' +
+          '<div class="he-subj">' + esc(e.subject) + '</div>' +
+          '<div class="he-date">' + fmtDate(e.dateISO, e.time) + readNote + '</div></div>' +
+        '<div class="he-status">' + statusChip(e) + '</div></div>' +
+      (thumbs ? '<div class="he-thumbs">' + thumbs + '</div>' : '') +
+      '<button type="button" class="he-exp" data-exp="' + e.id + '" aria-expanded="false" aria-controls="body-' + e.id + '">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>' +
+        '<span>Προβολή email</span></button>' +
+      '<div class="he-body" id="body-' + e.id + '" hidden><div class="mail-body">' + body + '</div><div class="mail-sig">' + SIG_HTML + '</div></div>' +
+    '</div>';
+  }).join('');
+}
+
+/* ---------------- Tabs / accordion ---------------- */
+function switchTab(tab){
+  state.tab = tab;
+  const isC = tab === 'compose';
+  $('#tabCompose').setAttribute('aria-selected', String(isC));
+  $('#tabHistory').setAttribute('aria-selected', String(!isC));
+  $('#viewCompose').hidden = !isC;
+  $('#viewHistory').hidden = isC;
+  if(!isC) renderHistory();
+}
+function syncAccordion(){
+  ['deltaHead','photoHead'].forEach(id => {
+    const head = document.getElementById(id);
+    const body = document.getElementById(head.getAttribute('aria-controls'));
+    body.dataset.collapsed = String(head.getAttribute('aria-expanded') === 'false');
+  });
+}
+
+/* ---------------- Toast ---------------- */
+let toastTimer = null;
+function toast(msg){
+  $('#toastMsg').textContent = msg;
+  const t = $('#toast'); t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+/* ---------------- Mutations ---------------- */
+function toggleDelta(id){
+  if(state.busy) return;
+  const cs = curCS();
+  if(cs.sel.has(id)) cs.sel.delete(id); else cs.sel.add(id);
+  save(); renderDelta(); renderDraft(); updateCounts();
+  if(cs.sel.has(id)) flashSrc('d-' + id);
+}
+function togglePhoto(id){
+  if(state.busy) return;
+  const cs = curCS();
+  const idx = cs.order.indexOf(id);
+  if(idx >= 0){ cs.order.splice(idx, 1); }
+  else {
+    if(cs.order.length >= 4){
+      const tile = $('#pgrid .ptile[data-phid="' + id + '"]');
+      if(tile){ tile.classList.add('deny'); setTimeout(() => tile.classList.remove('deny'), 620); }
+      toast('Έως 4 φωτογραφίες ανά ενημέρωση.');
+      return;
+    }
+    cs.order.push(id);
+  }
+  save(); renderPhotos(); renderOrder(); renderDraft(); updateCounts();
+  if(cs.order.includes(id)) flashSrc('ph-' + id);
+}
+function movePhoto(id, dir){
+  if(state.busy) return;
+  const cs = curCS();
+  const i = cs.order.indexOf(id);
+  const j = dir === 'up' ? i - 1 : i + 1;
+  if(i < 0 || j < 0 || j >= cs.order.length) return;
+  cs.order[i] = cs.order[j]; cs.order[j] = id;
+  save(); renderPhotos(); renderOrder(); renderDraft();
+  flashSrc('ph-' + id);
+}
+function switchProject(id){
+  if(state.busy || id === state.projId) return;
+  state.projId = id; save();
+  renderComposerChrome();
+  toggleWhy(false);
+  draftWithTheater();
+}
+function setTone(t){
+  if(state.busy) return;
+  const cs = curCS(); if(cs.tone === t) return;
+  cs.tone = t; save(); syncTone();
+  draftWithTheater();
+}
+function rephrase(){
+  if(state.busy) return;
+  curCS().variant++; save();
+  draftWithTheater();
+  toast('Νέα διατύπωση του κειμένου.');
+}
+function chooseSubject(i){
+  const p = curProj(), cs = curCS();
+  cs.subjectChip = i; cs.subject = p.subjects[i]; save();
+  $('#subjInput').value = cs.subject; renderSubjChips();
+}
+function editSubject(v){
+  const cs = curCS();
+  cs.subject = v; cs.subjectChip = null; save(); renderSubjChips();
+}
+function approve(){
+  if(state.busy) return;
+  const btn = $('#approveBtn');
+  const finish = () => {
+    const p = curProj(), cs = curCS();
+    const m = buildModel(p, cs.tone, cs.variant, cs.sel, cs.order);
+    const now = new Date();
+    state.history.unshift({
+      id: 'h' + now.getTime(), projId: p.id, clientName: p.clientName, clientEmail: p.clientEmail,
+      short: p.short, color: p.color, subject: cs.subject, tone: cs.tone,
+      dateISO: ymd(now), time: pad2(now.getHours()) + ':' + pad2(now.getMinutes()),
+      status: 'sent', readRel: null, model: m, photos: m.photos
+    });
+    state.byProj[p.id] = defaultCS(p);
+    const other = PROJECTS.find(x => x.id !== p.id);
+    state.projId = other.id;
+    save();
+    toggleWhy(false);
+    renderComposerChrome(); renderDraft();
+    toast('Η ενημέρωση εγκρίθηκε και στάλθηκε στον πελάτη.');
+  };
+  if(REDUCED()){
+    btn.disabled = true;
+    setTimeout(() => { btn.disabled = false; finish(); }, 220);
+    return;
+  }
+  state.busy = true;
+  btn.classList.add('shimmer'); btn.disabled = true; $('#approveLbl').textContent = 'Αποστολή…';
+  setTimeout(() => {
+    btn.classList.remove('shimmer'); btn.disabled = false; $('#approveLbl').textContent = 'Έγκριση & Αποστολή';
+    state.busy = false; finish();
+  }, 850);
+}
+
+/* ---------------- Wiring ---------------- */
+function wire(){
+  $('#tabCompose').addEventListener('click', () => switchTab('compose'));
+  $('#tabHistory').addEventListener('click', () => switchTab('history'));
+
+  $('#projBtns').addEventListener('click', e => { const b = e.target.closest('.proj-btn'); if(b) switchProject(b.dataset.pid); });
+  $('#deltaBody').addEventListener('change', e => { const c = e.target.closest('input[data-did]'); if(c) toggleDelta(c.dataset.did); });
+  $('#pgrid').addEventListener('click', e => { const b = e.target.closest('.ptile'); if(b) togglePhoto(b.dataset.phid); });
+  $('#ordList').addEventListener('click', e => { const b = e.target.closest('.ordbtn'); if(b && !b.disabled) movePhoto(b.dataset.phid, b.dataset.move); });
+
+  $('#toneFormal').addEventListener('click', () => setTone('formal'));
+  $('#toneFriendly').addEventListener('click', () => setTone('friendly'));
+  $('#rephraseBtn').addEventListener('click', rephrase);
+  $('#subjChips').addEventListener('click', e => { const b = e.target.closest('.schip'); if(b) chooseSubject(Number(b.dataset.subj)); });
+  $('#subjInput').addEventListener('input', e => editSubject(e.target.value));
+  $('#approveBtn').addEventListener('click', approve);
+
+  $('#whyBtn').addEventListener('click', () => toggleWhy());
+  document.addEventListener('click', e => {
+    if($('#whyPop').hidden) return;
+    if(e.target.closest('#whyPop') || e.target.closest('#whyBtn')) return;
+    toggleWhy(false);
+  });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape') toggleWhy(false); });
+
+  /* accordion heads (active as sections at phone width; harmless at desktop) */
+  ['deltaHead','photoHead'].forEach(id => {
+    document.getElementById(id).addEventListener('click', () => {
+      const head = document.getElementById(id);
+      const open = head.getAttribute('aria-expanded') === 'true';
+      head.setAttribute('aria-expanded', String(!open));
+      syncAccordion();
+    });
+  });
+
+  /* history (delegated: filter chips, expanders) */
+  $('#histFilter').addEventListener('click', e => {
+    const b = e.target.closest('.hfchip'); if(!b) return;
+    state.histFilter = b.dataset.hf; save(); renderHistory();
+  });
+  $('#histList').addEventListener('click', e => {
+    const b = e.target.closest('.he-exp'); if(!b) return;
+    const body = document.getElementById('body-' + b.dataset.exp);
+    const open = b.getAttribute('aria-expanded') === 'true';
+    b.setAttribute('aria-expanded', String(!open));
+    body.hidden = open;
+    b.querySelector('span').textContent = open ? 'Προβολή email' : 'Απόκρυψη email';
+  });
+  $('#schedToggle').addEventListener('click', () => {
+    state.scheduled = !state.scheduled; save();
+    $('#schedToggle').setAttribute('aria-checked', String(state.scheduled));
+    toast(state.scheduled ? 'Ενεργό: κάθε Παρασκευή θα ετοιμάζεται πρόχειρο προς έγκριση.' : 'Το αυτόματο πρόχειρο απενεργοποιήθηκε.');
+  });
+}
+
+/* ---------------- Init ---------------- */
+load();
+wire();
+renderComposerChrome();
+renderDraft();
+switchTab('compose');
+</script>
+</body>
+</html>

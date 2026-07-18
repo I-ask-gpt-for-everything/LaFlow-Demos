@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Εκκρεμότητες Επικοινωνίας — LaFlow</title>
+<link rel="icon" href="data:,">
+<style>
+  /* ============================================================
+     LF-04 — ΕΚΚΡΕΜΟΤΗΤΕΣ ΕΠΙΚΟΙΝΩΝΙΑΣ (redesign)
+     Editorial "morning briefing" reading of the same follow-up
+     triage tool: a sticky masthead, an asymmetric briefing rail +
+     content grid on desktop that reflows to a single column on
+     phones, and a drawer styled as an opened letter (torn paper
+     seam, ruled "stationery" textarea). All interactions, state
+     and data are unchanged from the shipped LF-04 — this pass is
+     visual/interaction design only. Offline, zero network, local
+     font-fallback stacks only. Simulated AI, honestly staged.
+     ============================================================ */
+  :root{
+    --forest-deep:#12302a;
+    --forest:#1a3c34;
+    --sage:#8a9a5b;
+    --sage-light:#a3b18a;
+    --cream:#faf6ee;
+    --cream-alt:#f3eee1;
+    --ink:#233028;
+    --ink-soft:#4d5b50;
+    --terracotta:#bb6b3d;
+    --terracotta-deep:#a05526;  /* AA-safe CTA background with white text */
+    --gold:#b59445;
+    --gold-deep:#8a6d2a;        /* AA-safe gold on cream/paper */
+    --hairline:rgba(26,60,52,.14);
+    --line:var(--hairline);
+    --line-strong:rgba(26,60,52,.26);
+    --paper:#fffdf7;
+    --danger:#9c3f2b;
+    --read-green:#5c7037;       /* AA-safe with white text */
+    /* urgency dots (calm — small dots only, never red walls) */
+    --u-green:#5c7037;
+    --u-amber:#b58324;
+    --u-red:#a5482f;
+    --serif:'Cormorant Garamond','Times New Roman',Georgia,serif;
+    --sans:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+    --radius:10px;
+    --radius-lg:16px;
+    --masthead-h:80px;
+    --shadow-card:0 1px 2px rgba(18,48,42,.05),0 6px 20px rgba(18,48,42,.07);
+    --shadow-rest:0 10px 34px rgba(18,48,42,.10);
+    --shadow-sheet:-24px 0 60px rgba(18,48,42,.24);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{min-height:100%}
+  body{
+    font-family:var(--sans);color:var(--ink);
+    line-height:1.5;-webkit-font-smoothing:antialiased;font-size:17px;
+    overflow-x:hidden;
+    background-color:var(--cream);
+    background-image:
+      repeating-linear-gradient(45deg, rgba(26,60,52,.028) 0 1px, transparent 1px 15px),
+      repeating-linear-gradient(-45deg, rgba(26,60,52,.02) 0 1px, transparent 1px 15px);
+  }
+  ::selection{background:var(--sage-light);color:var(--forest-deep)}
+  button{font-family:inherit;cursor:pointer;touch-action:manipulation}
+  input,select,textarea{font-family:inherit}
+  .eyebrow{font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-soft);font-weight:700}
+
+  /* ============ MASTHEAD ============ */
+  .masthead{
+    position:sticky;top:0;z-index:50;min-height:var(--masthead-h);
+    background:var(--forest-deep);color:var(--cream);
+    border-bottom:2px solid var(--gold);
+    box-shadow:0 10px 24px rgba(18,48,42,.18);
+  }
+  .masthead-inner{
+    max-width:1180px;margin:0 auto;height:100%;min-height:var(--masthead-h);
+    display:flex;align-items:center;gap:22px;padding:10px 26px;
+  }
+  .brand{display:flex;align-items:center;gap:11px;flex:none}
+  .brand-mark{width:42px;height:42px;border-radius:12px;background:var(--forest);border:1.5px solid rgba(181,148,69,.5);display:grid;place-items:center;flex:none}
+  .brand-mark svg{width:23px;height:23px;color:var(--sage-light)}
+  .brand-word{font-family:var(--serif);font-weight:600;font-size:26px;line-height:1;color:var(--cream);white-space:nowrap}
+  .brand-word b{color:var(--gold);font-weight:600}
+  .masthead-div{width:1px;align-self:stretch;background:rgba(163,177,138,.28);flex:none;margin:6px 0}
+  .masthead-feat{min-width:0}
+  .masthead-feat h1{font-family:var(--serif);font-weight:600;font-size:23px;line-height:1.1;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .masthead-feat p{font-size:13.5px;color:var(--sage-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .masthead-spacer{flex:1}
+  .masthead-date{flex:none;font-family:var(--serif);font-size:15px;color:var(--sage-light);white-space:nowrap;font-style:italic}
+  .demo-pill{flex:none;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--sage-light);border:1px solid rgba(163,177,138,.4);padding:7px 12px;border-radius:999px;white-space:nowrap}
+
+  /* ============ LAYOUT (briefing rail + content) ============ */
+  .layout{
+    max-width:1180px;margin:0 auto;padding:26px 26px 96px;
+    display:grid;grid-template-columns:296px 1fr;gap:30px;align-items:start;
+  }
+  .rail{position:sticky;top:100px;display:flex;flex-direction:column;gap:16px;min-width:0}
+  .content{min-width:0}
+
+  /* -- rail: intro pull-quote -- */
+  .rail-intro{
+    display:flex;gap:10px;align-items:flex-start;font-size:15px;color:var(--ink-soft);
+    background:var(--cream-alt);border:1px dashed var(--line-strong);border-radius:var(--radius);
+    padding:13px 14px;line-height:1.55;
+  }
+  .rail-intro svg{width:19px;height:19px;color:var(--gold-deep);flex:none;margin-top:2px}
+  .rail-intro b{color:var(--forest);font-weight:700}
+
+  /* -- rail: stat block -- */
+  .rail-stat{
+    background:#fff;border:1px solid var(--line);border-radius:var(--radius-lg);
+    padding:16px 18px 17px;box-shadow:var(--shadow-card);position:relative;overflow:hidden;
+  }
+  .rail-stat::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:linear-gradient(var(--forest),var(--gold))}
+  .stat-head{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+  .stat-ico{width:34px;height:34px;border-radius:9px;background:var(--forest);color:var(--sage-light);display:grid;place-items:center;flex:none}
+  .stat-ico svg{width:18px;height:18px}
+  .stat-txt{display:flex;flex-direction:column;gap:5px}
+  .st-count{font-family:var(--serif);font-weight:600;font-size:38px;color:var(--forest);line-height:1;font-variant-numeric:tabular-nums}
+  .st-mid{display:none}
+  .st-sub{font-size:14.5px;color:var(--ink-soft)}
+  .st-sub b{color:var(--terracotta-deep);font-weight:700;font-variant-numeric:tabular-nums}
+
+  /* -- rail: sort -- */
+  .rail-block{display:flex;flex-direction:column;gap:8px}
+  .rail-label{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;padding-left:2px}
+  .sortseg{display:flex;flex-direction:column;gap:8px;border:1.5px solid var(--line-strong);border-radius:var(--radius);overflow:hidden;background:#fff;padding:5px}
+  .sortbtn{
+    min-height:46px;padding:9px 14px;border:none;border-radius:7px;background:transparent;color:var(--ink-soft);
+    font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:9px;transition:all .14s;text-align:left;width:100%;
+  }
+  .sortbtn svg{width:16px;height:16px;flex:none}
+  .sortbtn[aria-pressed="true"]{background:var(--forest);color:#fff}
+  .sortbtn:not([aria-pressed="true"]):hover{background:var(--cream-alt);color:var(--forest)}
+
+  .snoozechip{
+    min-height:46px;padding:9px 16px;border-radius:var(--radius);border:1.5px solid var(--line-strong);background:#fff;
+    color:var(--ink);font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:8px;transition:all .14s;width:100%;
+  }
+  .snoozechip svg{width:16px;height:16px;color:var(--gold-deep);flex:none}
+  .snoozechip .sc-n{margin-left:auto;font-variant-numeric:tabular-nums;background:var(--cream-alt);border:1px solid var(--line);border-radius:999px;padding:1px 9px;font-size:13px;color:var(--forest)}
+  .snoozechip:hover{border-color:var(--forest)}
+  .snoozechip[aria-pressed="true"]{background:var(--gold-deep);border-color:var(--gold-deep);color:#fff}
+  .snoozechip[aria-pressed="true"] svg{color:#fff}
+  .snoozechip[aria-pressed="true"] .sc-n{background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.4);color:#fff}
+
+  /* -- rail: legend -- */
+  .rail-legend{display:flex;flex-direction:column;gap:8px;font-size:13.5px;color:var(--ink-soft);
+    background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
+  .rail-legend .li{display:flex;gap:8px;align-items:center}
+  .rail-legend .dot{width:11px;height:11px;border-radius:50%;flex:none;border:1px solid rgba(0,0,0,.14)}
+  .dot.green{background:var(--u-green)}
+  .dot.amber{background:var(--u-amber)}
+  .dot.red{background:var(--u-red)}
+
+  /* ============ GROUPS ============ */
+  .groups{display:flex;flex-direction:column;gap:16px}
+  .grp{background:#fff;border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden}
+  .grp-head{
+    width:100%;display:flex;align-items:center;gap:13px;padding:16px 20px;border:none;background:transparent;
+    text-align:left;min-height:58px;border-left:5px solid var(--gc,var(--forest));transition:background .14s;
+  }
+  .grp-head:hover{background:var(--cream-alt)}
+  .grp-head .g-ico{width:38px;height:38px;border-radius:10px;background:var(--cream-alt);border:1px solid var(--line);display:grid;place-items:center;flex:none;color:var(--gc,var(--forest))}
+  .grp-head .g-ico svg{width:20px;height:20px}
+  .grp-head .g-txt{min-width:0;flex:1}
+  .grp-head .g-name{display:block;font-family:var(--serif);font-weight:600;font-size:22px;color:var(--forest);line-height:1.15}
+  .grp-head .g-sub{display:block;font-size:13.5px;color:var(--ink-soft);margin-top:1px}
+  .grp-head .g-cnt{
+    flex:none;font-family:var(--serif);font-size:16px;font-weight:700;color:var(--gc,var(--forest));background:var(--cream-alt);
+    border:1.5px solid var(--gc,var(--line-strong));border-radius:50%;width:38px;height:38px;
+    display:inline-flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums;
+    box-shadow:0 0 0 3px #fff, 0 0 0 4px var(--line);
+  }
+  .grp-head .chev{flex:none;width:22px;height:22px;color:var(--ink-soft);transition:transform .2s;margin-left:2px}
+  .grp-head[aria-expanded="false"] .chev{transform:rotate(-90deg)}
+  .grp-body{padding:0 14px 12px}
+  .grp-body[hidden]{display:none}
+
+  /* rows */
+  .row{
+    width:100%;display:flex;align-items:center;gap:13px;text-align:left;background:var(--paper);
+    border:1px solid var(--line);border-left:4px solid var(--pc,var(--forest));border-radius:var(--radius);
+    padding:13px 15px;margin-top:9px;min-height:60px;transition:box-shadow .14s,border-color .14s,transform .1s,background .14s;
+  }
+  .row:hover{box-shadow:var(--shadow-rest);border-color:var(--line-strong);background:#fff}
+  .row:active{transform:translateY(1px)}
+  .row:focus-visible{outline:3px solid var(--forest);outline-offset:2px}
+  .r-dot{width:14px;height:14px;border-radius:50%;flex:none;border:1px solid rgba(0,0,0,.16);margin-top:3px;align-self:flex-start}
+  .r-dot.green{background:var(--u-green)}
+  .r-dot.amber{background:var(--u-amber)}
+  .r-dot.red{background:var(--u-red);box-shadow:0 0 0 3px rgba(165,72,47,.14)}
+  .r-main{flex:1;min-width:0}
+  .r-top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .r-client{font-size:17px;font-weight:700;color:var(--ink);line-height:1.25}
+  .r-proj{font-size:13.5px;font-weight:700;color:var(--pc,var(--forest));display:inline-flex;align-items:center;gap:5px}
+  .r-proj i{width:9px;height:9px;border-radius:50%;background:var(--pc,var(--forest));flex:none}
+  .r-context{font-size:14.5px;color:var(--ink-soft);margin-top:3px;line-height:1.45;overflow-wrap:anywhere}
+  .r-context b{color:var(--gold-deep);font-weight:700;font-variant-numeric:tabular-nums}
+  .r-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px;align-items:center}
+  .r-aging{
+    display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;border-radius:999px;
+    padding:4px 11px;border:1px solid transparent;white-space:nowrap;
+  }
+  .r-aging svg{width:13px;height:13px;flex:none}
+  .r-aging.a-low{background:var(--cream-alt);color:var(--ink-soft);border-color:var(--line)}
+  .r-aging.a-mid{background:#f4ecdb;color:var(--gold-deep);border-color:rgba(181,148,69,.45)}
+  .r-aging.a-high{background:#f4e5dd;color:var(--terracotta-deep);border-color:rgba(160,85,38,.4)}
+  .r-phase{
+    display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--forest);
+    background:#fff;border:1px solid var(--line-strong);border-radius:999px;padding:4px 11px;white-space:nowrap;
+  }
+  .r-health{
+    display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--u-red);
+    background:#f4e5dd;border:1px solid rgba(165,72,47,.4);border-radius:999px;padding:4px 10px;white-space:nowrap;
+  }
+  .r-health svg{width:13px;height:13px}
+  .r-right{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px;align-self:center}
+  .r-amount{font-size:18px;font-weight:700;color:var(--forest);font-variant-numeric:tabular-nums;white-space:nowrap;font-family:var(--serif)}
+  .r-go{width:22px;height:22px;color:var(--ink-soft);flex:none}
+
+  /* empty state per group */
+  .grp-empty{
+    display:flex;gap:12px;align-items:center;background:var(--cream-alt);border:1.5px dashed var(--line-strong);
+    border-radius:var(--radius);padding:16px 18px;margin-top:9px;color:var(--ink-soft);font-size:15.5px;line-height:1.45;
+  }
+  .grp-empty .em-ico{width:30px;height:30px;border-radius:50%;background:#fff;border:1px solid var(--line-strong);color:var(--forest);display:grid;place-items:center;flex:none}
+  .grp-empty .em-ico svg{width:16px;height:16px}
+  .grp-empty b{color:var(--forest)}
+
+  /* snoozed view */
+  .snoozed-wrap{background:#fff;border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);padding:10px 14px 14px}
+  .snoozed-head{display:flex;align-items:center;gap:11px;padding:13px 6px 10px}
+  .snoozed-head .sh-ico{width:38px;height:38px;border-radius:10px;background:var(--cream-alt);border:1px solid var(--line);display:grid;place-items:center;color:var(--gold-deep);flex:none}
+  .snoozed-head .sh-ico svg{width:20px;height:20px}
+  .snoozed-head h2{font-family:var(--serif);font-weight:600;font-size:22px;color:var(--forest)}
+  .snoozed-head p{font-size:13.5px;color:var(--ink-soft)}
+  .srow{
+    display:flex;align-items:center;gap:12px;background:var(--paper);border:1px solid var(--line);
+    border-left:4px solid var(--pc,var(--forest));border-radius:var(--radius);padding:12px 14px;margin-top:9px;min-height:56px;
+  }
+  .srow .s-main{flex:1;min-width:0}
+  .srow .s-client{font-size:16px;font-weight:700;color:var(--ink)}
+  .srow .s-meta{font-size:13.5px;color:var(--ink-soft);margin-top:2px}
+  .srow .s-return{
+    display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--gold-deep);
+    background:#f4ecdb;border:1px solid rgba(181,148,69,.45);border-radius:999px;padding:5px 12px;white-space:nowrap;flex:none;
+  }
+  .srow .s-return svg{width:14px;height:14px}
+  .unsnooze{
+    flex:none;min-height:44px;padding:9px 15px;border:1.5px solid var(--line-strong);border-radius:var(--radius);
+    background:#fff;color:var(--forest);font-weight:700;font-size:14px;display:inline-flex;align-items:center;gap:7px;transition:all .14s;
+  }
+  .unsnooze svg{width:15px;height:15px}
+  .unsnooze:hover{border-color:var(--forest);background:var(--cream-alt)}
+
+  /* ============ DRAWER (the "opened letter") ============ */
+  .overlay{position:fixed;inset:0;z-index:110;background:rgba(18,48,42,.45);opacity:0;visibility:hidden;transition:opacity .22s,visibility .22s}
+  body.drawer-open .overlay{opacity:1;visibility:visible}
+  body.drawer-open{overflow:hidden}
+  .drawer{
+    position:fixed;top:0;right:0;bottom:0;z-index:120;width:min(520px,100vw);background:var(--paper);
+    box-shadow:var(--shadow-sheet);transform:translateX(105%);visibility:hidden;
+    transition:transform .3s cubic-bezier(.4,0,.2,1),visibility .3s;display:flex;flex-direction:column;
+  }
+  body.drawer-open .drawer{transform:none;visibility:visible}
+  .d-head{padding:17px 22px 15px;background:#fff;flex:none}
+  .d-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .d-kick{display:inline-flex;align-items:center;gap:7px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-deep);font-weight:700}
+  .d-kick .kd{width:10px;height:10px;border-radius:50%;flex:none;border:1px solid rgba(0,0,0,.16)}
+  .d-kick .kd.green{background:var(--u-green)}
+  .d-kick .kd.amber{background:var(--u-amber)}
+  .d-kick .kd.red{background:var(--u-red)}
+  .d-close{
+    min-width:44px;min-height:44px;flex:none;border:1.5px solid var(--line-strong);background:#fff;color:var(--ink-soft);
+    border-radius:var(--radius);display:grid;place-items:center;transition:all .14s;
+  }
+  .d-close:hover{color:var(--forest);border-color:var(--forest);background:var(--cream-alt)}
+  .d-close svg{width:20px;height:20px}
+  .d-title{font-family:var(--serif);font-weight:600;font-size:29px;color:var(--forest);line-height:1.12;margin-top:8px}
+  .d-sub{font-size:14.5px;color:var(--ink-soft);margin-top:4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .d-sub .d-proj{display:inline-flex;gap:6px;align-items:center;font-weight:700;color:var(--pc,var(--forest))}
+  .d-sub .d-proj i{width:9px;height:9px;border-radius:50%;background:var(--pc,var(--forest));flex:none}
+  .d-sub .d-phase{font-size:12px;font-weight:700;color:#fff;background:var(--pc,var(--forest));border-radius:999px;padding:3px 11px}
+
+  /* torn-paper seam between the "letterhead" and the letter body — decorative only */
+  .d-head-tear{
+    height:11px;flex:none;background:var(--cream-alt);
+    clip-path:polygon(0% 0%,100% 0%,100% 100%,93.75% 55%,87.5% 100%,81.25% 55%,75% 100%,68.75% 55%,
+      62.5% 100%,56.25% 55%,50% 100%,43.75% 55%,37.5% 100%,31.25% 55%,25% 100%,18.75% 55%,12.5% 100%,6.25% 55%,0% 100%);
+  }
+
+  .d-body{flex:1;overflow-y:auto;min-height:0;padding:18px 22px 22px}
+  .d-summary{font-size:16.5px;line-height:1.6;color:var(--ink)}
+  .d-facts{display:flex;flex-direction:column;gap:2px;margin-top:15px;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:6px 15px;box-shadow:var(--shadow-card)}
+  .fact{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px dashed var(--line);font-size:14.5px}
+  .fact:last-child{border-bottom:none}
+  .fact .fk{color:var(--ink-soft);flex:none}
+  .fact .fv{color:var(--ink);font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+  .fact .fv.warn{color:var(--terracotta-deep)}
+
+  .d-why{
+    margin-top:15px;background:#fff;border:1.5px solid var(--sage);border-radius:var(--radius-lg);
+    padding:14px 16px;box-shadow:var(--shadow-card);
+  }
+  .d-why h3{font-size:14.5px;font-weight:700;color:var(--forest);display:flex;align-items:center;gap:8px}
+  .d-why h3 svg{width:17px;height:17px;color:var(--sage);flex:none}
+  .d-why p{font-size:15.5px;line-height:1.55;color:var(--ink);margin-top:7px;font-style:italic}
+
+  .d-draftlbl{font-size:12px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin:20px 0 8px;display:flex;align-items:center;gap:8px}
+  .d-draftlbl svg{width:15px;height:15px;color:var(--gold-deep)}
+  .d-draftlbl .tag{font-size:10.5px;letter-spacing:.1em;color:var(--ink-soft);border:1px solid var(--line-strong);padding:2px 8px;border-radius:999px;margin-left:auto}
+  .draft-box{position:relative}
+  .draft-box textarea{
+    width:100%;min-height:236px;resize:vertical;font-family:var(--sans);font-size:16px;line-height:1.62;color:var(--ink);
+    background-color:#fff;
+    background-image:repeating-linear-gradient(to bottom, transparent 0 31px, rgba(26,60,52,.055) 31px 32px);
+    border:1.5px solid var(--line-strong);border-radius:var(--radius-lg);padding:14px 16px;outline:none;
+    transition:border-color .14s,box-shadow .14s;
+  }
+  .draft-box textarea:focus{border-color:var(--forest);box-shadow:0 0 0 3px rgba(26,60,52,.14)}
+  .draft-box textarea:disabled{background-color:#fbfaf5;color:var(--ink)}
+  .draft-veil{position:absolute;inset:0;display:none;border-radius:var(--radius-lg);overflow:hidden;background:rgba(251,250,245,.72)}
+  .draft-box.busy .draft-veil{display:block}
+  .draft-veil::after{
+    content:'';position:absolute;inset:0;
+    background:linear-gradient(105deg,transparent 30%,rgba(138,154,91,.20) 50%,transparent 70%);
+    animation:shim 1.1s linear infinite;
+  }
+  @keyframes shim{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+  .draft-veil .dv-lbl{
+    position:absolute;top:16px;left:50%;transform:translateX(-50%);
+    background:var(--forest-deep);color:#fff;font-size:13.5px;font-weight:600;
+    border-radius:999px;padding:8px 16px;display:flex;gap:8px;align-items:center;white-space:nowrap;
+  }
+  .draft-veil .dv-lbl svg{width:15px;height:15px;color:var(--sage-light)}
+  .d-edithint{font-size:12.5px;color:var(--ink-soft);margin-top:7px;display:flex;gap:6px;align-items:center}
+  .d-edithint svg{width:14px;height:14px;flex:none;color:var(--gold-deep)}
+
+  /* action rows */
+  .d-actions{margin-top:19px;display:flex;flex-direction:column;gap:12px}
+  .act-row{display:flex;gap:10px;flex-wrap:wrap}
+  .btn{
+    min-height:50px;border-radius:var(--radius);border:none;font-weight:700;font-size:15.5px;
+    display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:11px 18px;
+    transition:transform .12s,background .15s,color .15s,border-color .15s;position:relative;overflow:hidden;
+  }
+  .btn svg{width:18px;height:18px;flex:none}
+  .btn:active{transform:translateY(1px)}
+  .btn-copy{flex:1;min-width:150px;background:#fff;border:1.5px solid var(--forest);color:var(--forest)}
+  .btn-copy:hover{background:var(--cream-alt)}
+  .btn-copy.done{background:var(--read-green);border-color:var(--read-green);color:#fff}
+  .btn-sent{flex:1;min-width:170px;background:var(--terracotta-deep);color:#fff}
+  .btn-sent:hover{background:#8f4a1f}
+  .snooze-block{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--cream-alt);
+    border:1px dashed var(--line-strong);border-radius:var(--radius);padding:11px 14px;
+  }
+  .snooze-block .sb-lbl{display:inline-flex;align-items:center;gap:7px;font-size:14.5px;font-weight:700;color:var(--forest)}
+  .snooze-block .sb-lbl svg{width:17px;height:17px;color:var(--gold-deep);flex:none}
+  .snoozebtn{
+    min-height:44px;padding:9px 16px;border:1.5px solid var(--line-strong);border-radius:999px;background:#fff;
+    color:var(--forest);font-weight:700;font-size:14.5px;transition:all .14s;
+  }
+  .snoozebtn:hover{border-color:var(--forest);background:#fff}
+  .btn-dismiss{
+    min-height:44px;align-self:flex-start;background:transparent;border:1.5px solid var(--line-strong);color:var(--ink-soft);
+    border-radius:var(--radius);padding:9px 16px;font-weight:700;font-size:14.5px;display:inline-flex;align-items:center;gap:8px;transition:all .14s;
+  }
+  .btn-dismiss svg{width:16px;height:16px}
+  .btn-dismiss:hover{color:var(--danger);border-color:var(--danger);background:#f5e6df}
+
+  /* ============ TOAST (with 5s undo) ============ */
+  .toast{
+    position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(16px);z-index:300;
+    background:var(--forest-deep);color:#fff;font-weight:600;font-size:15px;padding:11px 12px 11px 18px;
+    border-radius:var(--radius);box-shadow:0 10px 30px rgba(18,48,42,.35);display:flex;align-items:center;gap:12px;
+    opacity:0;visibility:hidden;transition:opacity .2s,transform .2s,visibility .2s;max-width:min(94vw,540px);
+    border:1px solid rgba(181,148,69,.4);
+  }
+  .toast.show{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+  .toast .t-ico{width:18px;height:18px;color:var(--sage-light);flex:none}
+  .toast .t-msg{min-width:0}
+  .toast .t-undo{
+    flex:none;min-height:44px;padding:8px 15px;border:1.5px solid rgba(163,177,138,.55);border-radius:999px;
+    background:transparent;color:var(--sage-light);font-weight:700;font-size:14.5px;display:inline-flex;align-items:center;gap:7px;transition:all .14s;
+  }
+  .toast .t-undo svg{width:15px;height:15px}
+  .toast .t-undo:hover{background:rgba(163,177,138,.16);color:#fff;border-color:var(--sage-light)}
+  .toast .t-undo[hidden]{display:none}
+
+  /* ============ RESPONSIVE ============ */
+  /* ≥981px: two-column briefing layout (sticky rail + content) */
+  @media(max-width:980px){
+    .layout{grid-template-columns:1fr;padding:20px 20px 90px}
+    .rail{position:static;flex-direction:row;flex-wrap:wrap;gap:12px}
+    .rail-intro{flex:1 1 100%}
+    .rail-stat{flex:1 1 240px}
+    .rail-block{flex:0 0 auto}
+    .sortseg{flex-direction:row}
+    .sortbtn{width:auto}
+    .snoozechip{width:auto}
+    .rail-legend{flex-direction:row;flex-wrap:wrap;gap:14px;flex:1 1 100%}
+  }
+  @media(max-width:760px){
+    .masthead-date{display:none}
+  }
+  @media(max-width:620px){
+    .masthead-inner{gap:12px;padding:10px 14px}
+    .demo-pill{display:none}
+    .r-right{flex-direction:row;align-items:center;align-self:center;gap:8px}
+  }
+  /* phone (~375px): single-column; drawer becomes a bottom sheet */
+  @media(max-width:560px){
+    .brand-word{font-size:22px}
+    .brand-mark{width:38px;height:38px}
+    .masthead-feat h1{font-size:18px;white-space:normal}
+    .masthead-feat p{display:none}
+    .masthead-div{display:none}
+    :root{--masthead-h:60px}
+    .layout{padding:14px 12px 76px;gap:14px}
+    .rail{gap:10px}
+    .rail-intro{font-size:14.5px;padding:11px 12px}
+    .rail-stat{padding:13px 14px 14px}
+    .st-count{font-size:32px}
+    .rail-block{flex:1 1 100%}
+    .sortseg{flex-direction:column;width:100%}
+    .sortbtn{width:100%;padding:10px 13px;font-size:14px}
+    .snoozechip{flex:1 1 100%;padding:10px 13px;font-size:14px}
+    .rail-legend{flex:1 1 100%}
+    .grp-head{padding:13px 14px;gap:10px}
+    .grp-head .g-name{font-size:19.5px}
+    .grp-head .g-ico{width:34px;height:34px}
+    .grp-head .g-cnt{width:32px;height:32px;font-size:14.5px}
+    .grp-body{padding:0 9px 9px}
+    .row{padding:12px 12px;gap:11px;flex-wrap:wrap}
+    .r-right{flex-basis:100%;flex-direction:row;justify-content:space-between;align-items:center;margin-top:2px;padding-top:8px;border-top:1px dashed var(--line)}
+    .r-go{display:none}
+    .r-client{font-size:16.5px}
+    .drawer{
+      top:auto;left:0;right:0;bottom:0;width:100%;max-height:92dvh;height:auto;
+      border-radius:18px 18px 0 0;transform:translateY(105%);box-shadow:0 -18px 50px rgba(18,48,42,.3);
+    }
+    body.drawer-open .drawer{transform:none}
+    .d-head{border-radius:18px 18px 0 0;padding:12px 16px 14px}
+    .d-head::before{content:'';display:block;width:44px;height:4px;border-radius:2px;background:var(--line-strong);margin:0 auto 8px}
+    .d-title{font-size:24px}
+    .d-body{padding:15px 16px 20px}
+    .btn-copy,.btn-sent{min-width:100%;flex:1 1 100%}
+    .toast{bottom:12px;left:8px;right:8px;transform:translateY(16px);max-width:none}
+    .toast.show{transform:translateY(0)}
+  }
+  @media(max-width:379px){
+    .sortbtn{padding:9px 12px;font-size:13.5px}
+    .snoozechip{padding:9px 12px}
+    .r-aging{font-size:12px;padding:4px 9px}
+    .st-count{font-size:29px}
+  }
+
+  /* prefers-reduced-motion: kill shimmer/drawer/toast motion; JS also
+     skips the drafting theater and renders the follow-up instantly */
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{
+      animation-duration:.01ms !important;animation-iteration-count:1 !important;
+      transition-duration:.01ms !important;scroll-behavior:auto !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ MASTHEAD ============ -->
+<header class="masthead">
+  <div class="masthead-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>
+      </span>
+      <span class="brand-word">La<b>Flow</b></span>
+    </div>
+    <span class="masthead-div" aria-hidden="true"></span>
+    <div class="masthead-feat">
+      <h1>Εκκρεμότητες Επικοινωνίας</h1>
+      <p>Ό,τι περιμένει απάντηση, σε μία οθόνη.</p>
+    </div>
+    <span class="masthead-spacer"></span>
+    <span class="masthead-date" id="datelineText" aria-hidden="true"></span>
+    <span class="demo-pill">Demo · Προσομοίωση AI</span>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- ============ RAIL (briefing) ============ -->
+  <aside class="rail">
+    <p class="rail-intro">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/></svg>
+      <span><b>Ο καφές του πρωινού, τρεις αποφάσεις.</b> Το LaFlow μαζεύει όσα περιμένουν απάντηση —
+      προσφορές χωρίς νέα, πελάτες που περιμένουν εσάς, συζητήσεις που κρύωσαν — και ετοιμάζει έτοιμο follow-up για κάθε μία.</span>
+    </p>
+
+    <div class="rail-stat">
+      <div class="stat-head">
+        <span class="stat-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H7l-3 3Z"/><path d="M8 9h8M8 12h5"/></svg>
+        </span>
+        <span class="eyebrow">Σημερινή εικόνα</span>
+      </div>
+      <span class="stat-txt" id="statTxt" aria-live="polite"></span>
+    </div>
+
+    <div class="rail-block">
+      <span class="rail-label">Ταξινόμηση</span>
+      <div class="sortseg" role="group" aria-label="Ταξινόμηση εκκρεμοτήτων">
+        <button class="sortbtn" id="sortAge" type="button" aria-pressed="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg>
+          Παλαιότερα πρώτα
+        </button>
+        <button class="sortbtn" id="sortValue" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20"/><path d="M17 5.5c-1.2-1-3-1.5-5-1.5-3 0-5 1.3-5 3.3 0 4.7 10 2.3 10 7 0 2-2 3.4-5 3.4-2 0-3.9-.6-5-1.6"/></svg>
+          Μεγαλύτερη αξία
+        </button>
+      </div>
+    </div>
+
+    <button class="snoozechip" id="snoozeChip" type="button" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 5H7l11 14H6"/></svg>
+      Αναβλήθηκε <span class="sc-n" id="snoozeN">0</span>
+    </button>
+
+    <div class="rail-legend" aria-hidden="true">
+      <span class="li"><span class="dot green"></span> Χαμηλή προτεραιότητα</span>
+      <span class="li"><span class="dot amber"></span> Χρειάζεται προσοχή</span>
+      <span class="li"><span class="dot red"></span> Επείγει</span>
+    </div>
+  </aside>
+
+  <!-- ============ CONTENT ============ -->
+  <section class="content">
+    <div class="groups" id="groups"></div>
+
+    <div class="snoozed-wrap" id="snoozedWrap" hidden>
+      <div class="snoozed-head">
+        <span class="sh-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 5H7l11 14H6"/></svg>
+        </span>
+        <div>
+          <h2>Αναβλήθηκε</h2>
+          <p>Επιστρέφουν αυτόματα στη λίστα όταν φτάσει η ημερομηνία.</p>
+        </div>
+      </div>
+      <div id="snoozedList"></div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============ DRAWER ============ -->
+<div class="overlay" id="overlay"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Λεπτομέρειες εκκρεμότητας" inert>
+  <div class="d-head">
+    <div class="d-top">
+      <span class="d-kick" id="dKick"></span>
+      <button class="d-close" id="dClose" type="button" aria-label="Κλείσιμο">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <h2 class="d-title" id="dTitle"></h2>
+    <div class="d-sub" id="dSub"></div>
+  </div>
+  <div class="d-head-tear" aria-hidden="true"></div>
+  <div class="d-body" id="dBody"></div>
+</aside>
+
+<!-- ============ TOAST ============ -->
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <svg class="t-ico" id="toastIco" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+  <span class="t-msg" id="toastMsg"></span>
+  <button class="t-undo" id="toastUndo" type="button" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>
+    Αναίρεση
+  </button>
+</div>
+
+<script>
+/* ============================================================
+   LF-04 Εκκρεμότητες Επικοινωνίας — functional MVP (offline)
+   Redesign pass: same triage dashboard + detail drawer state
+   machine and simulated-AI draft logic as the shipped LF-04.
+   Aging + dates derived from seeded ages relative to REAL today.
+   State persisted in localStorage under `laflow-lf04-followups-v1`.
+   ============================================================ */
+'use strict';
+
+/* ---------------- Helpers ---------------- */
+const $  = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad2 = n => String(n).padStart(2,'0');
+const REDUCED = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const fill = (tpl, o) => tpl.replace(/\{(\w+)\}/g, (_, k) => o[k] != null ? o[k] : '');
+const STORAGE_KEY = 'laflow-lf04-followups-v1';
+
+/* real "today" at load — the anchor for all aging + date math */
+const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+const dayMs = 86400000;
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const iso = d => d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
+const fromIso = s => { const [y,m,dd]=s.split('-').map(Number); const d=new Date(y,m-1,dd); d.setHours(0,0,0,0); return d; };
+const dmy = d => pad2(d.getDate())+'/'+pad2(d.getMonth()+1);
+const daysBetween = (a,b) => Math.round((fromIso(iso(b)) - fromIso(iso(a))) / dayMs);
+/* Greek day-count agreement */
+const nDays = n => n === 1 ? '1 ημέρα' : n + ' ημέρες';
+const gDays = n => n === 1 ? '1 ημέρας' : n + ' ημερών';
+const euro = n => n.toLocaleString('el-GR') + ' €';
+/* editorial "dateline" (masthead), e.g. «Κυριακή, 12 Ιουλίου» — decorative only */
+function capFirst(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
+function dateline(){
+  try{
+    const wd = new Intl.DateTimeFormat('el-GR', { weekday:'long' }).format(TODAY);
+    const dm = new Intl.DateTimeFormat('el-GR', { day:'numeric', month:'long' }).format(TODAY);
+    return capFirst(wd) + ', ' + dm;
+  }catch(e){ return ''; }
+}
+
+const SIG = 'Με εκτίμηση,\nΣωτήρης Παπαδάκης\nOutdoor Design — Αρχιτεκτονική Τοπίου';
+
+/* ---------------- Icons ---------------- */
+const ICO = {
+  offer:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v13H7l-3 3Z"/><path d="M8 9h8M8 12.5h5"/></svg>',
+  waiting:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>',
+  stale:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7l-4-4Z"/><path d="M4 7h16M9 12h6"/></svg>',
+  clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5l3 1.8"/></svg>',
+  hourglass:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12M6 21h12M7 3c0 4 3.5 5.5 5 7 1.5-1.5 5-3 5-7M7 21c0-4 3.5-5.5 5-7 1.5 1.5 5 3 5 7"/></svg>',
+  wind:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h11a3 3 0 1 0-3-3M3 16h15a3 3 0 1 1-3 3"/></svg>',
+  spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/></svg>',
+  chev:'<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+  go:'<svg class="r-go" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>',
+  trend:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6 6 4-4 8 8"/><path d="M21 17v-6h-6"/></svg>',
+  done:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/></svg>',
+  sprout:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v-8"/><path d="M12 12c0-4 3-6 7-6 0 4-2 7-7 7Z"/><path d="M12 13c0-3-2.5-5-6-5 0 3.5 2 6 6 6Z"/></svg>'
+};
+
+/* ---------------- Group definitions ---------------- */
+const GROUPS = {
+  offer:   { key:'offer',   name:'Προσφορές χωρίς απάντηση', color:'#a05526', ico:ICO.offer,
+             sub:'Προσφορές που εστάλησαν και περιμένουν απάντηση' },
+  waiting: { key:'waiting', name:'Περιμένουν εμάς',          color:'#1a3c34', ico:ICO.waiting,
+             sub:'Πελάτες που περιμένουν τη δική σας απάντηση' },
+  stale:   { key:'stale',   name:'Παλιές συζητήσεις',        color:'#8a6d2a', ico:ICO.stale,
+             sub:'Συζητήσεις που σταμάτησαν χωρίς κατάληξη' }
+};
+const GROUP_ORDER = ['offer','waiting','stale'];
+
+/* ---------------- Seeded universe (shared with LF-01/02/03) ----------------
+   `age` = days since the last relevant message (the aging). Derived to a real
+   date = TODAY - age so the demo never looks stale. Colors are per-project.
+   `greet` = the drafted follow-up's opening address; individuals get their
+   named form (κ. Βασιλείου), organisations/families get a warm addressed
+   form («στην Alpha Real Estate» / «στην οικογένεια Αλεξίου») rather than a
+   bare, generic «σας» — small warmth nit from the LF-04 polish backlog. */
+const THREADS = [
+  /* ===== Προσφορές χωρίς απάντηση (4) ===== */
+  { id:'t1', group:'offer', color:'#46603f',
+    client:'κ. Νίκος Βασιλείου', greet:'κ. Βασιλείου', proj:'Roof garden Κολωνάκι', phase:'Προσφορά',
+    subject:'Προσφορά διαμόρφωσης ταράτσας', amount:14200, age:12, expiresIn:5, avgResp:2, health:'declining',
+    scope:'τη διαμόρφωση της ταράτσας σας στο Κολωνάκι',
+    summary:'Στείλατε την προσφορά για τη διαμόρφωση της ταράτσας στο Κολωνάκι (14.200 €) πριν από 12 ημέρες. Δεν υπάρχει ακόμη απάντηση, παρότι ο κ. Βασιλείου απαντούσε πάντα μέσα σε δύο ημέρες. Η ισχύς της προσφοράς λήγει σύντομα.' },
+  { id:'t2', group:'offer', color:'#a05526',
+    client:'Alpha Real Estate Α.Ε.', greet:'στην Alpha Real Estate', proj:'Campus Μαρούσι', phase:'Προσφορά',
+    subject:'Προσφορά περιβάλλοντος χώρου — Campus Μαρούσι', amount:48500, age:6, expiresIn:9, avgResp:5, health:'good',
+    scope:'τη διαμόρφωση του περιβάλλοντος χώρου του εταιρικού campus στο Μαρούσι',
+    summary:'Η προσφορά για τον περιβάλλοντα χώρο του εταιρικού campus (48.500 €) εστάλη στην Alpha Real Estate πριν από 6 ημέρες. Είναι η προσφορά με τη μεγαλύτερη αξία που εκκρεμεί αυτή τη στιγμή.' },
+  { id:'t3', group:'offer', color:'#5b6b7a',
+    client:'κ. Γιώργος Παπαδόπουλος', greet:'κ. Παπαδόπουλε', proj:'Νέα κατοικία Βουλιαγμένη', phase:'Προσφορά',
+    subject:'Προσφορά κήπου νέας κατοικίας', amount:22800, age:9, expiresIn:6, avgResp:null, health:'good',
+    scope:'τη διαμόρφωση του κήπου της νέας σας κατοικίας στη Βουλιαγμένη',
+    summary:'Νέος πελάτης: στείλατε την πρώτη προσφορά για τον κήπο της κατοικίας στη Βουλιαγμένη (22.800 €) πριν από 9 ημέρες. Μια πρώτη προσφορά χωρίς απάντηση αξίζει μια ευγενική υπενθύμιση.' },
+  { id:'t4', group:'offer', color:'#7a4a52',
+    client:'Ξενοδοχείο Αστέρια', greet:'στο Ξενοδοχείο Αστέρια', proj:'Αίθριο ξενοδοχείου Γλυφάδα', phase:'Προσφορά',
+    subject:'Προσφορά διαμόρφωσης αίθριου ξενοδοχείου', amount:9600, age:3, expiresIn:12, avgResp:null, health:'good',
+    scope:'τη διαμόρφωση του αίθριου του ξενοδοχείου σας στη Γλυφάδα',
+    summary:'Η προσφορά για το αίθριο του ξενοδοχείου Αστέρια (9.600 €) εστάλη μόλις πριν από 3 ημέρες. Ακόμη νωρίς — μια σύντομη υπενθύμιση κρατά τη συζήτηση ζωντανή.' },
+
+  /* ===== Περιμένουν εμάς (4) ===== */
+  { id:'t5', group:'waiting', color:'#1a3c34',
+    client:'κα Ελένη Δημητρίου', greet:'κα Δημητρίου', proj:'Βίλα Εκάλη', phase:'Κατασκευή',
+    subject:'Ερώτηση για λίστα φυτών', amount:0, age:4, health:'good',
+    reqShort:'Ζήτησε τη λίστα φυτών για τον κήπο',
+    topicFull:'τη λίστα φυτών για τον κήπο σας',
+    promise:'ετοιμάζω αναλυτική πρόταση με τα είδη και τις ποσότητες, προσαρμοσμένη στον προσανατολισμό του κήπου',
+    timeframe:'Θα την έχετε στα χέρια σας έως το τέλος της εβδομάδας.',
+    summary:'Η κα Δημητρίου ζήτησε τη λίστα φυτών για τον κήπο της Βίλας στην Εκάλη πριν από 4 ημέρες. Η μπάλα είναι στο δικό μας γήπεδο — περιμένει τη δική μας απάντηση.' },
+  { id:'t6', group:'waiting', color:'#8a6d2a',
+    client:'οικογένεια Αλεξίου', greet:'στην οικογένεια Αλεξίου', proj:'Κήπος Κηφισιά', phase:'Συντήρηση',
+    subject:'Πρόγραμμα συντήρησης φθινοπώρου', amount:0, age:2, health:'good',
+    reqShort:'Ζήτησε το πρόγραμμα συντήρησης φθινοπώρου',
+    topicFull:'το πρόγραμμα συντήρησης για το φθινόπωρο',
+    promise:'οριστικοποιώ το χρονοδιάγραμμα των επισκέψεων και τις εργασίες ανά μήνα',
+    timeframe:'Θα σας το στείλω μέσα στις επόμενες ημέρες.',
+    summary:'Η οικογένεια Αλεξίου ζήτησε το πρόγραμμα συντήρησης για το φθινόπωρο πριν από 2 ημέρες. Πρόσφατο αίτημα — μια γρήγορη απάντηση δείχνει συνέπεια.' },
+  { id:'t7', group:'waiting', color:'#5b6b7a',
+    client:'κ. Γιώργος Παπαδόπουλος', greet:'κ. Παπαδόπουλε', proj:'Νέα κατοικία Βουλιαγμένη', phase:'Προσφορά',
+    subject:'Αίτημα για εναλλακτική πρόταση', amount:0, age:7, health:'good',
+    reqShort:'Ζήτησε εναλλακτική με μικρότερο προϋπολογισμό',
+    topicFull:'την εναλλακτική πρόταση με πιο συγκρατημένο προϋπολογισμό',
+    promise:'διαμορφώνω μια δεύτερη εκδοχή που κρατά τα βασικά στοιχεία του σχεδιασμού με χαμηλότερο κόστος',
+    timeframe:'Θα την έχετε τις επόμενες 2-3 ημέρες.',
+    summary:'Ο κ. Παπαδόπουλος ζήτησε μια εναλλακτική πρόταση με μικρότερο προϋπολογισμό πριν από 7 ημέρες. Όσο καθυστερεί η απάντηση, τόσο κινδυνεύει να κρυώσει το ενδιαφέρον ενός νέου πελάτη.' },
+  { id:'t8', group:'waiting', color:'#7a4a52',
+    client:'Ξενοδοχείο Αστέρια', greet:'στο Ξενοδοχείο Αστέρια', proj:'Αίθριο ξενοδοχείου Γλυφάδα', phase:'Προσφορά',
+    subject:'Ερώτηση για δείγματα & χρονοδιάγραμμα', amount:0, age:5, health:'good',
+    reqShort:'Ζήτησε δείγματα υλικών και χρονοδιάγραμμα',
+    topicFull:'τα δείγματα υλικών και το χρονοδιάγραμμα υλοποίησης',
+    promise:'συγκεντρώνω τα δείγματα και ετοιμάζω το αναλυτικό πλάνο εργασιών',
+    timeframe:'Θα σας τα προωθήσω στις αρχές της επόμενης εβδομάδας.',
+    summary:'Το ξενοδοχείο Αστέρια ζήτησε δείγματα υλικών και χρονοδιάγραμμα υλοποίησης πριν από 5 ημέρες, ώστε να προχωρήσει η απόφαση. Περιμένουν τη δική μας ανταπόκριση.' },
+
+  /* ===== Παλιές συζητήσεις (3) ===== */
+  { id:'t9', group:'stale', color:'#46603f',
+    client:'κ. Νίκος Βασιλείου', greet:'κ. Βασιλείου', proj:'Roof garden Κολωνάκι', phase:'Προσφορά',
+    subject:'Ιδέες για φωτισμό ταράτσας', amount:0, age:15, health:'declining',
+    subjPhrase:'τις ιδέες φωτισμού για την ταράτσα',
+    question:'αν θα θέλατε να προχωρήσουμε σε μια ολοκληρωμένη πρόταση',
+    summary:'Η συζήτηση για τον φωτισμό της ταράτσας στο Κολωνάκι σταμάτησε πριν από 15 ημέρες. Ο ίδιος πελάτης δείχνει πτωτική τάση στην επικοινωνία — αξίζει μια διακριτική κίνηση.' },
+  { id:'t10', group:'stale', color:'#8a6d2a',
+    client:'οικογένεια Αλεξίου', greet:'στην οικογένεια Αλεξίου', proj:'Κήπος Κηφισιά', phase:'Συντήρηση',
+    subject:'Αντικατάσταση αυτόματου ποτίσματος', amount:0, age:19, health:'good',
+    subjPhrase:'την αντικατάσταση του αυτόματου ποτίσματος',
+    question:'αν εξακολουθεί να σας ενδιαφέρει να το δρομολογήσουμε πριν τον χειμώνα',
+    summary:'Η κουβέντα για την αντικατάσταση του αυτόματου ποτίσματος στην Κηφισιά έμεινε στη μέση εδώ και 19 ημέρες — είναι η παλαιότερη εκκρεμότητά σας αυτή τη στιγμή.' },
+  { id:'t11', group:'stale', color:'#a05526',
+    client:'Alpha Real Estate Α.Ε.', greet:'στην Alpha Real Estate', proj:'Campus Μαρούσι', phase:'Προσφορά',
+    subject:'Επέκταση χώρου στάθμευσης — παλαιότερη συζήτηση', amount:0, age:13, health:'good',
+    subjPhrase:'την επέκταση του χώρου στάθμευσης',
+    question:'αν υπάρχει ενδιαφέρον να επανεξετάσουμε το θέμα μέσα στη νέα χρονιά',
+    summary:'Μια παλαιότερη συζήτηση με την Alpha Real Estate για την επέκταση του χώρου στάθμευσης έμεινε ανοιχτή πριν από 13 ημέρες. Είχε ενδιαφέρον — ίσως αξίζει να την ξαναπιάσουμε.' }
+];
+const byId = id => THREADS.find(t => t.id === id);
+
+/* ---------------- Aging → real dates ---------------- */
+function sentDate(t){ return addDays(TODAY, -t.age); }   /* the date the message left / arrived */
+
+/* ---------------- Urgency dot (aging × client health) ---------------- */
+function urgency(t){
+  const d = t.age;
+  if (t.health === 'declining' && d >= 10) return 'red';
+  if (d >= 18) return 'red';
+  if (d >= 4)  return 'amber';
+  if (t.health === 'declining' && d >= 3) return 'amber';
+  return 'green';
+}
+const URG_LABEL = { green:'Χαμηλή προτεραιότητα', amber:'Χρειάζεται προσοχή', red:'Επείγει' };
+
+/* aging badge (calm terracotta/amber) */
+function agingClass(t){ const u = urgency(t); return u === 'red' ? 'a-high' : u === 'amber' ? 'a-mid' : 'a-low'; }
+function agingText(t){
+  const d = nDays(t.age);
+  if (t.group === 'offer')   return d + ' χωρίς απάντηση';
+  if (t.group === 'waiting') return d + ' περιμένει απάντησή μας';
+  return d + ' χωρίς νέα';
+}
+
+/* ---------------- Simulated-AI draft (3 templates × per-thread facts) ---------------- */
+function genDraft(t){
+  if (t.group === 'offer'){
+    return fill(
+      'Καλησπέρα {greet},\n\n'+
+      'ελπίζω να είστε καλά. Θα ήθελα να επανέλθω σχετικά με την προσφορά μας για {scope} ({amount}€), που σας εστάλη στις {sent}.\n\n'+
+      'Είμαι στη διάθεσή σας για οποιαδήποτε διευκρίνιση ή προσαρμογή. Να σημειώσω ότι η ισχύς της προσφοράς λήγει σε {expiry}, οπότε θα χαρώ να τα πούμε σύντομα.\n\n'+
+      '{sig}',
+      { greet:t.greet, scope:t.scope, amount:t.amount.toLocaleString('el-GR')+String.fromCharCode(160),
+        sent:dmy(sentDate(t)), expiry:nDays(t.expiresIn), sig:SIG });
+  }
+  if (t.group === 'waiting'){
+    return fill(
+      'Καλησπέρα {greet},\n\n'+
+      'συγγνώμη για την καθυστέρηση. Σχετικά με {topic}, {promise}.\n\n'+
+      '{timeframe} Ευχαριστώ για την υπομονή σας — αν χρειάζεστε κάτι στο μεταξύ, είμαι στη διάθεσή σας.\n\n'+
+      '{sig}',
+      { greet:t.greet, topic:t.topicFull, promise:t.promise, timeframe:t.timeframe, sig:SIG });
+  }
+  return fill(
+    'Καλησπέρα {greet},\n\n'+
+    'πέρασε λίγος καιρός από την τελευταία μας επικοινωνία σχετικά με {subj}. Ήθελα απλώς να επανέλθω και να δω {question}.\n\n'+
+    'Παραμένω στη διάθεσή σας για να το συνεχίσουμε όποτε σας βολεύει.\n\n'+
+    '{sig}',
+    { greet:t.greet, subj:t.subjPhrase, question:t.question, sig:SIG });
+}
+
+/* ---------------- «Γιατί τώρα;» — rule-based urgency line ---------------- */
+function whyNow(t){
+  if (t.group === 'offer'){
+    if (t.health === 'declining')
+      return 'Η προσφορά λήγει σε '+nDays(t.expiresIn)+' και ο πελάτης, που απαντούσε πάντα εντός '+gDays(t.avgResp)+', έχει '+nDays(t.age)+' να απαντήσει — η σιωπή είναι ασυνήθιστη.';
+    if (t.amount >= 30000)
+      return 'Προσφορά υψηλής αξίας ('+euro(t.amount)+') με ισχύ που λήγει σε '+nDays(t.expiresIn)+' — μια υπενθύμιση τώρα προστατεύει τη συμφωνία.';
+    if (t.age <= 3)
+      return 'Εστάλη πρόσφατα ('+nDays(t.age)+'). Μια ευγενική υπενθύμιση δείχνει συνέπεια χωρίς να πιέζει.';
+    return 'Νέος πελάτης, πρώτη προσφορά — '+nDays(t.age)+' χωρίς απάντηση και η ισχύς λήγει σε '+nDays(t.expiresIn)+'.';
+  }
+  if (t.group === 'waiting'){
+    if (t.age >= 6)
+      return 'Ο πελάτης περιμένει τη δική σας απάντηση '+nDays(t.age)+' — όσο καθυστερεί, τόσο κινδυνεύει να κρυώσει το ενδιαφέρον.';
+    return 'Η μπάλα είναι στο δικό σας γήπεδο εδώ και '+nDays(t.age)+'. Μια γρήγορη απάντηση χτίζει εμπιστοσύνη.';
+  }
+  if (t.health === 'declining')
+    return nDays(t.age)+' χωρίς νέα, σε πελάτη με πτωτική τάση στην επικοινωνία — αξίζει μια διακριτική κίνηση πριν χαθεί εντελώς.';
+  if (t.age >= 18)
+    return 'Είναι η παλαιότερη εκκρεμότητά σας ('+nDays(t.age)+'). Ή την ξαναζωντανεύετε ή την κλείνετε — για να μη μένει αόρατη.';
+  return nDays(t.age)+' χωρίς εξέλιξη σε μια συζήτηση που είχε ενδιαφέρον — ένα μήνυμα αρκεί για να δείτε αν συνεχίζεται.';
+}
+
+/* ---------------- Key facts ---------------- */
+function factsHTML(t){
+  const rows = [];
+  if (t.group === 'offer'){
+    rows.push(['Ποσό προσφοράς', euro(t.amount), false]);
+    rows.push(['Εστάλη', dmy(sentDate(t)), false]);
+    rows.push(['Λήγει σε', nDays(t.expiresIn), t.expiresIn <= 5]);
+    rows.push(['Τελευταίο μήνυμα', 'εσείς · '+dmy(sentDate(t)), false]);
+    if (t.health === 'declining') rows.push(['Μέση απόκριση πελάτη', nDays(t.avgResp)+' (τώρα: '+nDays(t.age)+')', true]);
+  } else if (t.group === 'waiting'){
+    rows.push(['Αίτημα πελάτη', t.subject, false]);
+    rows.push(['Ελήφθη', dmy(sentDate(t)), false]);
+    rows.push(['Εκκρεμεί', nDays(t.age), t.age >= 6]);
+    rows.push(['Τελευταίο μήνυμα', 'ο πελάτης · '+dmy(sentDate(t)), false]);
+  } else {
+    rows.push(['Θέμα', t.subject, false]);
+    rows.push(['Τελευταίο μήνυμα', dmy(sentDate(t)), false]);
+    rows.push(['Ανενεργή', nDays(t.age), t.age >= 18]);
+    if (t.health === 'declining') rows.push(['Τάση επικοινωνίας', 'πτωτική', true]);
+  }
+  return rows.map(r =>
+    '<div class="fact"><span class="fk">'+esc(r[0])+'</span><span class="fv'+(r[2]?' warn':'')+'">'+esc(r[1])+'</span></div>'
+  ).join('');
+}
+
+/* context one-liner for a row */
+function contextHTML(t){
+  if (t.group === 'offer')
+    return 'Προσφορά <b>'+euro(t.amount)+'</b> — εστάλη '+dmy(sentDate(t));
+  if (t.group === 'waiting')
+    return esc(t.reqShort)+' — εκκρεμεί η απάντησή μας';
+  return 'Τελευταίο μήνυμα '+dmy(sentDate(t))+' — η συζήτηση σταμάτησε';
+}
+
+/* ================================================================
+   STATE
+   ================================================================ */
+const state = {
+  sort: 'age',                  /* 'age' | 'value' */
+  showSnoozed: false,
+  collapsed: { offer:false, waiting:false, stale:false },
+  ts: {}                        /* per-thread: { status:'active'|'sent'|'dismissed', snoozeUntil:iso|null } */
+};
+THREADS.forEach(t => { state.ts[t.id] = { status:'active', snoozeUntil:null }; });
+const drafts = {};              /* edited draft text per thread */
+const drafted = new Set();      /* threads whose theater already played this session */
+
+function save(){
+  try{
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      v:1, sort:state.sort, showSnoozed:state.showSnoozed, collapsed:state.collapsed,
+      ts:state.ts, drafts
+    }));
+  }catch(e){ /* storage unavailable → in-memory only */ }
+}
+function load(){
+  let data = null;
+  try{ const raw = localStorage.getItem(STORAGE_KEY); if(raw) data = JSON.parse(raw); }catch(e){ data = null; }
+  if(!data || data.v !== 1) return;
+  if(data.sort === 'age' || data.sort === 'value') state.sort = data.sort;
+  state.showSnoozed = !!data.showSnoozed;
+  if(data.collapsed) GROUP_ORDER.forEach(k => { if(typeof data.collapsed[k]==='boolean') state.collapsed[k]=data.collapsed[k]; });
+  if(data.ts) THREADS.forEach(t => {
+    const s = data.ts[t.id];
+    if(s && (s.status==='active'||s.status==='sent'||s.status==='dismissed')){
+      state.ts[t.id].status = s.status;
+      state.ts[t.id].snoozeUntil = s.snoozeUntil || null;
+    }
+  });
+  if(data.drafts) Object.keys(data.drafts).forEach(id => { if(byId(id)) drafts[id] = String(data.drafts[id]); });
+  /* expire snoozes whose return date has passed relative to real today */
+  let changed = false;
+  THREADS.forEach(t => {
+    const s = state.ts[t.id];
+    if(s.snoozeUntil && daysBetween(TODAY, fromIso(s.snoozeUntil)) <= 0){ s.snoozeUntil = null; changed = true; }
+  });
+  if(changed) save();
+}
+
+/* ---------------- Derived selectors ---------------- */
+const isSnoozed = t => { const s = state.ts[t.id]; return s.status === 'active' && s.snoozeUntil; };
+const isVisible = t => { const s = state.ts[t.id]; return s.status === 'active' && !s.snoozeUntil; };
+function visibleInGroup(g){
+  let arr = THREADS.filter(t => t.group === g && isVisible(t));
+  if(state.sort === 'value') arr.sort((a,b) => (b.amount - a.amount) || (b.age - a.age));
+  else arr.sort((a,b) => (b.age - a.age) || (b.amount - a.amount));
+  return arr;
+}
+const snoozedThreads = () => THREADS.filter(isSnoozed)
+  .sort((a,b) => daysBetween(TODAY, fromIso(state.ts[a.id].snoozeUntil)) - daysBetween(TODAY, fromIso(state.ts[b.id].snoozeUntil)));
+
+/* ================================================================
+   RENDER
+   ================================================================ */
+function renderStat(){
+  const all = THREADS.filter(isVisible);
+  const n = all.length;
+  const el = $('#statTxt');
+  if(n === 0){
+    el.innerHTML = '<span class="st-count">Όλα καθαρά</span><span class="st-mid">·</span>'+
+      '<span class="st-sub">καμία ενεργή εκκρεμότητα — ωραίο ξεκίνημα!</span>';
+  } else {
+    const oldest = all.reduce((m,t) => Math.max(m, t.age), 0);
+    el.innerHTML = '<span class="st-count">'+n+(n===1?' εκκρεμότητα':' εκκρεμότητες')+'</span>'+
+      '<span class="st-mid">·</span>'+
+      '<span class="st-sub">παλαιότερη <b>'+gDays(oldest)+'</b></span>';
+  }
+  $('#snoozeN').textContent = snoozedThreads().length;
+}
+
+function rowHTML(t){
+  const u = urgency(t);
+  const health = (t.health === 'declining')
+    ? '<span class="r-health">'+ICO.trend+'Πτωτική τάση</span>' : '';
+  const amount = t.amount > 0
+    ? '<span class="r-amount">'+esc(euro(t.amount))+'</span>' : '';
+  return '<button class="row" type="button" data-id="'+t.id+'" style="--pc:'+t.color+'" '+
+      'aria-label="'+esc(t.client+' — '+t.subject+'. '+agingText(t)+'. '+URG_LABEL[u])+'">'+
+    '<span class="r-dot '+u+'" aria-hidden="true"></span>'+
+    '<span class="r-main">'+
+      '<span class="r-top"><span class="r-client">'+esc(t.client)+'</span>'+
+        '<span class="r-proj"><i aria-hidden="true"></i>'+esc(t.proj)+'</span></span>'+
+      '<span class="r-context">'+contextHTML(t)+'</span>'+
+      '<span class="r-chips">'+
+        '<span class="r-aging '+agingClass(t)+'">'+ICO.clock+esc(agingText(t))+'</span>'+
+        '<span class="r-phase">Φάση: '+esc(t.phase)+'</span>'+ health +
+      '</span>'+
+    '</span>'+
+    '<span class="r-right">'+ amount + ICO.go +'</span>'+
+  '</button>';
+}
+
+function renderGroups(){
+  const wrap = $('#groups');
+  if(state.showSnoozed){ wrap.hidden = true; $('#snoozedWrap').hidden = false; renderSnoozed(); return; }
+  wrap.hidden = false; $('#snoozedWrap').hidden = true;
+
+  wrap.innerHTML = GROUP_ORDER.map(g => {
+    const def = GROUPS[g];
+    const rows = visibleInGroup(g);
+    const collapsed = state.collapsed[g];
+    const body = rows.length
+      ? rows.map(rowHTML).join('')
+      : '<div class="grp-empty"><span class="em-ico" aria-hidden="true">'+ICO.done+'</span>'+
+        '<span><b>Καμία εκκρεμότητα εδώ.</b> '+emptyCopy(g)+'</span></div>';
+    return '<section class="grp" style="--gc:'+def.color+'">'+
+      '<button class="grp-head" type="button" data-grp="'+g+'" aria-expanded="'+(!collapsed)+'" aria-controls="body-'+g+'">'+
+        '<span class="g-ico" aria-hidden="true">'+def.ico+'</span>'+
+        '<span class="g-txt"><span class="g-name">'+esc(def.name)+'</span>'+
+          '<span class="g-sub">'+esc(def.sub)+'</span></span>'+
+        '<span class="g-cnt" aria-label="'+rows.length+' εκκρεμότητες">'+rows.length+'</span>'+
+        ICO.chev +
+      '</button>'+
+      '<div class="grp-body" id="body-'+g+'"'+(collapsed?' hidden':'')+'>'+ body +'</div>'+
+    '</section>';
+  }).join('');
+}
+function emptyCopy(g){
+  if(g==='offer')   return 'Καμία προσφορά δεν περιμένει απάντηση αυτή τη στιγμή.';
+  if(g==='waiting') return 'Δεν χρωστάτε απάντηση σε κανέναν — είστε ενήμεροι.';
+  return 'Καμία συζήτηση δεν έμεινε στη μέση.';
+}
+
+function renderSnoozed(){
+  const list = snoozedThreads();
+  const el = $('#snoozedList');
+  if(!list.length){
+    el.innerHTML = '<div class="grp-empty"><span class="em-ico" aria-hidden="true">'+ICO.sprout+'</span>'+
+      '<span><b>Τίποτα σε αναβολή.</b> Ό,τι αναβάλλετε θα εμφανίζεται εδώ με την ημερομηνία επιστροφής.</span></div>';
+    return;
+  }
+  el.innerHTML = list.map(t => {
+    const ret = daysBetween(TODAY, fromIso(state.ts[t.id].snoozeUntil));
+    const when = ret <= 0 ? 'επιστρέφει σήμερα' : 'επιστρέφει σε '+nDays(ret);
+    return '<div class="srow" style="--pc:'+t.color+'">'+
+      '<div class="s-main"><div class="s-client">'+esc(t.client)+' · '+esc(t.proj)+'</div>'+
+        '<div class="s-meta">'+esc(t.subject)+'</div></div>'+
+      '<span class="s-return">'+ICO.hourglass+esc(when)+' ('+dmy(fromIso(state.ts[t.id].snoozeUntil))+')</span>'+
+      '<button class="unsnooze" type="button" data-unsnooze="'+t.id+'">'+
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>'+
+        'Επαναφορά</button>'+
+    '</div>';
+  }).join('');
+}
+
+function renderAll(){ renderStat(); renderGroups(); syncToolbar(); }
+function syncToolbar(){
+  $('#sortAge').setAttribute('aria-pressed', String(state.sort==='age'));
+  $('#sortValue').setAttribute('aria-pressed', String(state.sort==='value'));
+  $('#snoozeChip').setAttribute('aria-pressed', String(state.showSnoozed));
+}
+
+/* ================================================================
+   DRAWER
+   ================================================================ */
+let draftToken = 0;
+let openId = null;
+let openerEl = null;   /* the row <button> that triggered the drawer — for focus return */
+
+function openDrawer(id, trigger){
+  const t = byId(id);
+  if(!t) return;
+  openId = id;
+  openerEl = trigger || null;
+  const u = urgency(t);
+  $('#drawer').style.setProperty('--pc', t.color);
+  $('#dKick').innerHTML = '<span class="kd '+u+'" aria-hidden="true"></span>'+esc(GROUPS[t.group].name);
+  $('#dTitle').textContent = t.client;
+  $('#dSub').innerHTML = '<span class="d-proj"><i aria-hidden="true"></i>'+esc(t.proj)+'</span>'+
+    '<span class="d-phase">Φάση: '+esc(t.phase)+'</span>';
+
+  $('#dBody').innerHTML =
+    '<p class="d-summary">'+esc(t.summary)+'</p>'+
+    '<div class="d-facts">'+factsHTML(t)+'</div>'+
+    '<div class="d-why"><h3>'+ICO.spark+'Γιατί τώρα;</h3><p>'+esc(whyNow(t))+'</p></div>'+
+    '<div class="d-draftlbl">'+ICO.spark+'Προτεινόμενο follow-up<span class="tag">Προσομοίωση AI</span></div>'+
+    '<div class="draft-box" id="draftBox">'+
+      '<div class="draft-veil" aria-hidden="true"><span class="dv-lbl">'+ICO.spark+'Το AI συντάσσει το follow-up…</span></div>'+
+      '<textarea id="draftText" aria-label="Κείμενο follow-up (επεξεργάσιμο)" spellcheck="false"></textarea>'+
+    '</div>'+
+    '<p class="d-edithint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Μπορείτε να το αλλάξετε ελεύθερα πριν το στείλετε.</p>'+
+    '<div class="d-actions">'+
+      '<div class="act-row">'+
+        '<button class="btn btn-copy" id="copyBtn" type="button">'+
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>'+
+          '<span id="copyLbl">Αντιγραφή κειμένου</span></button>'+
+        '<button class="btn btn-sent" id="sentBtn" type="button">'+
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-11 11"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg>'+
+          'Στάλθηκε follow-up</button>'+
+      '</div>'+
+      '<div class="snooze-block">'+
+        '<span class="sb-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 5H7l11 14H6"/></svg>Αναβολή</span>'+
+        '<button class="snoozebtn" type="button" data-snooze="3">3 ημέρες</button>'+
+        '<button class="snoozebtn" type="button" data-snooze="7">7 ημέρες</button>'+
+      '</div>'+
+      '<button class="btn-dismiss" id="dismissBtn" type="button">'+
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>'+
+        'Απόρριψη</button>'+
+    '</div>';
+
+  document.body.classList.add('drawer-open');
+  const drawerEl = $('#drawer');
+  drawerEl.removeAttribute('inert');
+  drawerEl.setAttribute('aria-hidden','false');
+  runDraftTheater(t);
+  setTimeout(() => { const c = $('#dClose'); if(c) c.focus(); }, 60);
+}
+
+function closeDrawer(){
+  if(openId === null) return;
+  draftToken++;                 /* cancel any in-flight typing */
+  openId = null;
+  document.body.classList.remove('drawer-open');
+  const drawerEl = $('#drawer');
+  /* Move focus OUT of the drawer before hiding it — applying aria-hidden/inert
+     to a container that still holds focus triggers an a11y console warning.
+     Prefer returning focus to the row that opened the drawer (standard
+     dialog-close focus-return pattern); otherwise just blur. */
+  const active = document.activeElement;
+  if(active && drawerEl.contains(active)){
+    if(openerEl && document.body.contains(openerEl)) openerEl.focus();
+    else active.blur();
+  }
+  drawerEl.setAttribute('aria-hidden','true');
+  drawerEl.setAttribute('inert','');
+  openerEl = null;
+}
+
+function runDraftTheater(t){
+  const my = ++draftToken;
+  const box = $('#draftBox');
+  const ta = $('#draftText');
+  const full = drafts[t.id] != null ? drafts[t.id] : genDraft(t);
+
+  if(drafted.has(t.id)){          /* already played this session → instant */
+    ta.value = full; ta.disabled = false; box.classList.remove('busy');
+    return;
+  }
+  ta.value = ''; ta.disabled = true; box.classList.add('busy');
+  const reduced = REDUCED();
+  const delay = reduced ? 220 : 620 + Math.random()*280;
+
+  setTimeout(() => {
+    if(my !== draftToken) return;
+    box.classList.remove('busy');
+    drafted.add(t.id);
+    if(reduced){ ta.value = full; ta.disabled = false; return; }
+    let i = 0;
+    (function type(){
+      if(my !== draftToken) return;
+      i = Math.min(full.length, i + 3);
+      ta.value = full.slice(0, i);
+      ta.scrollTop = ta.scrollHeight;
+      if(i < full.length) setTimeout(type, 16);
+      else ta.disabled = false;
+    })();
+  }, delay);
+}
+
+/* ---------------- Clipboard (async API + execCommand fallback; never throws) ---------------- */
+function legacyCopy(text){
+  try{
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly','');
+    ta.style.position = 'fixed'; ta.style.top = '-1000px'; ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select(); ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  }catch(e){ return false; }
+}
+async function copyDraft(){
+  const ta = $('#draftText'); if(!ta) return;
+  const text = ta.value;
+  let ok = false;
+  try{
+    if(navigator.clipboard && window.isSecureContext){
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    }
+  }catch(e){ ok = false; }
+  if(!ok) ok = legacyCopy(text);
+  const btn = $('#copyBtn'), lbl = $('#copyLbl');
+  if(ok){
+    btn.classList.add('done'); lbl.textContent = 'Αντιγράφηκε';
+    setTimeout(() => { btn.classList.remove('done'); lbl.textContent = 'Αντιγραφή κειμένου'; }, 1900);
+    toast('Το κείμενο αντιγράφηκε — επικολλήστε το στο Gmail.', 'check');
+  } else {
+    toast('Δεν ήταν δυνατή η αντιγραφή. Επιλέξτε το κείμενο και αντιγράψτε χειροκίνητα.', 'info');
+  }
+}
+
+/* ================================================================
+   MUTATIONS
+   ================================================================ */
+function doSnooze(id, days){
+  const t = byId(id); if(!t) return;
+  state.ts[id].snoozeUntil = iso(addDays(TODAY, days));
+  save();
+  closeDrawer();
+  renderAll();
+  toast(t.client+': αναβλήθηκε — επιστρέφει σε '+nDays(days)+'.', 'snooze');
+}
+function unsnooze(id){
+  const t = byId(id); if(!t) return;
+  state.ts[id].snoozeUntil = null;
+  save(); renderAll();
+  toast(t.client+': επέστρεψε στη λίστα.', 'check');
+}
+function removeThread(id, kind){   /* kind: 'sent' | 'dismissed' */
+  const t = byId(id); if(!t) return;
+  const prev = { status:state.ts[id].status, snoozeUntil:state.ts[id].snoozeUntil };
+  state.ts[id].status = kind;
+  state.ts[id].snoozeUntil = null;
+  save();
+  closeDrawer();
+  renderAll();
+  const msg = kind === 'sent'
+    ? t.client+': σημειώθηκε ως «Στάλθηκε follow-up».'
+    : t.client+': η εκκρεμότητα απορρίφθηκε.';
+  toastUndo(msg, id, prev, kind === 'sent' ? 'check' : 'info');
+}
+function undoRemove(id, prev){
+  state.ts[id].status = prev.status;
+  state.ts[id].snoozeUntil = prev.snoozeUntil;
+  save(); renderAll();
+  const t = byId(id);
+  toast((t?t.client+': ':'')+'η ενέργεια αναιρέθηκε.', 'check');
+}
+
+/* ================================================================
+   TOAST (plain + 5s undo variant)
+   ================================================================ */
+let toastTimer = null;
+const TOAST_ICONS = {
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 8.5v5"/><circle cx="12" cy="16.3" r=".7" fill="currentColor" stroke="none"/>',
+  snooze:'<path d="M18 5H7l11 14H6"/>'
+};
+function setToastIcon(kind){ $('#toastIco').innerHTML = TOAST_ICONS[kind] || TOAST_ICONS.check; }
+function toast(msg, kind){
+  clearTimeout(toastTimer);
+  setToastIcon(kind || 'check');
+  $('#toastMsg').textContent = msg;
+  $('#toastUndo').hidden = true;
+  const el = $('#toast'); el.classList.add('show');
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+function toastUndo(msg, id, prev, kind){
+  clearTimeout(toastTimer);
+  setToastIcon(kind || 'check');
+  $('#toastMsg').textContent = msg;
+  const undo = $('#toastUndo');
+  undo.hidden = false;
+  undo.onclick = () => {
+    clearTimeout(toastTimer);
+    $('#toast').classList.remove('show');
+    undo.hidden = true; undo.onclick = null;
+    undoRemove(id, prev);
+  };
+  const el = $('#toast'); el.classList.add('show');
+  toastTimer = setTimeout(() => { el.classList.remove('show'); undo.hidden = true; undo.onclick = null; }, 5000);
+}
+
+/* ================================================================
+   WIRING
+   ================================================================ */
+function wire(){
+  /* sort */
+  $('#sortAge').addEventListener('click',   () => setSort('age'));
+  $('#sortValue').addEventListener('click', () => setSort('value'));
+  /* snoozed filter chip */
+  $('#snoozeChip').addEventListener('click', () => {
+    state.showSnoozed = !state.showSnoozed; save(); renderAll();
+  });
+
+  /* group collapse + row taps (delegated) */
+  $('#groups').addEventListener('click', e => {
+    const head = e.target.closest('.grp-head');
+    if(head){
+      const g = head.dataset.grp;
+      state.collapsed[g] = !state.collapsed[g];
+      save(); renderGroups();
+      return;
+    }
+    const row = e.target.closest('.row');
+    if(row){ openDrawer(row.dataset.id, row); }
+  });
+
+  /* snoozed list: un-snooze */
+  $('#snoozedList').addEventListener('click', e => {
+    const b = e.target.closest('[data-unsnooze]'); if(!b) return;
+    unsnooze(b.dataset.unsnooze);
+  });
+
+  /* drawer close */
+  $('#dClose').addEventListener('click', closeDrawer);
+  $('#overlay').addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', e => { if(e.key === 'Escape' && openId !== null) closeDrawer(); });
+
+  /* drawer actions (delegated) */
+  $('#dBody').addEventListener('click', e => {
+    if(e.target.closest('#copyBtn')){ copyDraft(); return; }
+    if(e.target.closest('#sentBtn')){ if(openId) removeThread(openId, 'sent'); return; }
+    if(e.target.closest('#dismissBtn')){ if(openId) removeThread(openId, 'dismissed'); return; }
+    const sn = e.target.closest('[data-snooze]');
+    if(sn && openId){ doSnooze(openId, parseInt(sn.dataset.snooze, 10)); return; }
+  });
+  /* persist manual edits to the draft */
+  $('#dBody').addEventListener('input', e => {
+    if(e.target.id === 'draftText' && openId){ drafts[openId] = e.target.value; save(); }
+  });
+}
+function setSort(s){
+  if(state.sort === s) return;
+  state.sort = s; save();
+  renderAll();
+  toast(s === 'value' ? 'Ταξινόμηση: μεγαλύτερη αξία πρώτα.' : 'Ταξινόμηση: παλαιότερα πρώτα.', 'info');
+}
+
+/* ---------------- Init ---------------- */
+load();
+wire();
+renderAll();
+const dl = $('#datelineText'); if(dl) dl.textContent = dateline();
+</script>
+</body>
+</html>
