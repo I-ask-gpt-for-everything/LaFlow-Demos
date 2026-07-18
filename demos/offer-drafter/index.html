@@ -1630,7 +1630,10 @@ function attachEvents(){
   $('#discInp').addEventListener('input', e=>{
     const v = parseNumStrict(e.target.value);
     if(v === null || v < 0) return; /* invalid/negative → keep last valid percent */
-    curDraft().discount = Math.min(20, round2(v));
+    const clamped = Math.min(20, round2(v));
+    curDraft().discount = clamped;
+    /* only reflect the clamp when out of range, so valid/intermediate typing is untouched */
+    if(v > 20) e.target.value = String(clamped).replace('.', ',');
     updateLight();
   });
   $('#discInp').addEventListener('change', ()=>{ syncTotalsInputs(); update(); });
