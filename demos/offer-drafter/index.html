@@ -383,9 +383,9 @@
   }
   .discinp:focus{border-color:var(--forest);box-shadow:0 0 0 3px rgba(26,60,52,.14)}
   .trow .neg{color:var(--terracotta-deep)}
-  .grand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:8px;padding-top:13px;border-top:2px solid var(--forest)}
+  .grand{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;margin-top:8px;padding-top:13px;border-top:2px solid var(--forest)}
   .grand .gl{font-size:14.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;color:var(--forest)}
-  .grand .gv{font-family:var(--serif);font-size:35px;font-weight:600;color:var(--forest);font-variant-numeric:tabular-nums}
+  .grand .gv{font-family:var(--serif);font-size:35px;font-weight:600;color:var(--forest);font-variant-numeric:tabular-nums;white-space:nowrap;margin-left:auto}
   .comp-empty{background:#fff;border:1.5px dashed var(--line-strong);border-radius:var(--r-lg);padding:30px 20px;text-align:center;color:var(--ink-soft);font-size:16px;margin-top:20px}
 
   /* ============ 3. PREVIEW PANEL — the dark "stage" ============ */
@@ -856,7 +856,7 @@ const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
 const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const round2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
 const fmt = n => round2(n).toLocaleString('el-GR',{minimumFractionDigits:2,maximumFractionDigits:2});
-const euro = n => fmt(n) + ' €';
+const euro = n => fmt(n) + ' €';
 /* Parse Greek or plain decimal input: "1.234,56" | "1234,56" | "68.5".
    Strict: returns null for empty/invalid text so callers can keep the
    last valid value instead of silently zeroing a line. */
