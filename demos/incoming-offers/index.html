@@ -1734,7 +1734,12 @@ function wire(){
   $('#mCloseBtn').addEventListener('click', closeNegotiation);
   $('#overlay').addEventListener('click', closeNegotiation);
   $('#copyBtn').addEventListener('click', copyDraft);
-  document.addEventListener('keydown', e => { if(e.key==='Escape' && negoId!==null) closeNegotiation(); });
+  document.addEventListener('keydown', e => {
+    if(e.key !== 'Escape') return;
+    if(negoId !== null){ closeNegotiation(); return; }          /* modal first */
+    if(state.view === 'detail'){ state.detailId = null; show('list'); return; }
+    if(state.view === 'compare'){ show('list'); }
+  });
 }
 
 /* ---------------- Init ---------------- */
