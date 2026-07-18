@@ -612,7 +612,7 @@ const daysBetween = (a,b) => Math.round((fromIso(iso(b)) - fromIso(iso(a))) / da
 /* Greek day-count agreement */
 const nDays = n => n === 1 ? '1 ημέρα' : n + ' ημέρες';
 const gDays = n => n === 1 ? '1 ημέρας' : n + ' ημερών';
-const euro = n => n.toLocaleString('el-GR') + ' €';
+const euro = n => n.toLocaleString('el-GR') + String.fromCharCode(160) + '€';
 /* editorial "dateline" (masthead), e.g. «Κυριακή, 12 Ιουλίου» — decorative only */
 function capFirst(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : s; }
 function dateline(){
