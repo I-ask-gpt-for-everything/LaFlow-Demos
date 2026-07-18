@@ -554,7 +554,7 @@ const daysIn = (y,m) => new Date(y, m+1, 0).getDate();
 const sameYM = (iso,y,m) => { const p = iso.split('-').map(Number); return p[0]===y && p[1]===m+1; };
 const plur = (n,s,p) => n + ' ' + (n===1 ? s : p);
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
-const fmtEUR = n => n.toLocaleString('el-GR') + ' €';
+const fmtEUR = n => n.toLocaleString('el-GR') + String.fromCharCode(160) + '€';
 const REDUCED = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const MONTHS_NOM = ['Ιανουάριος','Φεβρουάριος','Μάρτιος','Απρίλιος','Μάιος','Ιούνιος','Ιούλιος','Αύγουστος','Σεπτέμβριος','Οκτώβριος','Νοέμβριος','Δεκέμβριος'];
