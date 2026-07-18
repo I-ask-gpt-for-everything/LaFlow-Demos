@@ -75,6 +75,15 @@
   .feat-label{font-size:14px;font-weight:600;color:var(--sage-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
   .topbar .spacer{flex:1}
   .demo-tag{flex:none;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--sage-light);border:1px solid rgba(163,177,138,.4);padding:7px 12px;border-radius:999px;white-space:nowrap}
+  /* comfort (larger text) toggle — serves the low-vision persona */
+  .comfort-btn{flex:none;display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:6px 14px;border-radius:999px;cursor:pointer;background:rgba(250,246,238,.06);color:var(--cream);border:1px solid rgba(163,177,138,.4);font-family:inherit;font-size:12.5px;font-weight:600;white-space:nowrap;transition:background .15s,border-color .15s,color .15s}
+  .comfort-btn:hover{background:rgba(250,246,238,.12)}
+  .comfort-btn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  .comfort-btn[aria-pressed="true"]{background:var(--sage);border-color:var(--sage);color:var(--forest-deep)}
+  .comfort-btn .cf-mark{font-family:var(--serif);font-weight:700;line-height:1;font-size:17px}
+  .comfort-btn .cf-mark sup{font-size:.62em}
+  /* the actual scale-up: page-level zoom so ALL px-based text/UI grows uniformly and media queries reflow */
+  html.comfort{zoom:1.15}
 
   /* ============ PAGE HEAD (editorial letterhead feel) ============ */
   .page{max-width:1280px;margin:0 auto;padding:28px 26px 70px}
@@ -456,6 +465,8 @@
   @media(max-width:799px){
     .topbar{gap:12px;padding:10px 14px}
     .demo-tag{display:none}
+    .comfort-btn .comfort-lbl{display:none}
+    .comfort-btn{padding:6px 11px}
     .pgrid{grid-template-columns:repeat(3,1fr)}
     .after-mail{flex-direction:column;align-items:stretch}
     .why-row{display:flex;justify-content:center}
@@ -551,6 +562,10 @@
   <span class="tb-divider" aria-hidden="true"></span>
   <p class="feat-label">Ενημερώσεις Πελατών με AI</p>
   <span class="spacer"></span>
+  <button class="comfort-btn" id="comfortBtn" type="button" aria-pressed="false" aria-label="Μεγαλύτερα γράμματα">
+    <span class="cf-mark" aria-hidden="true">Α<sup>+</sup></span>
+    <span class="comfort-lbl">Μεγαλύτερα γράμματα</span>
+  </button>
   <span class="demo-tag">Demo · Προσομοίωση AI</span>
 </header>
 
@@ -1374,6 +1389,7 @@ function approve(){
 function wire(){
   $('#tabCompose').addEventListener('click', () => switchTab('compose'));
   $('#tabHistory').addEventListener('click', () => switchTab('history'));
+  $('#comfortBtn').addEventListener('click', toggleComfort);
 
   $('#projBtns').addEventListener('click', e => { const b = e.target.closest('.proj-btn'); if(b) switchProject(b.dataset.pid); });
   $('#deltaBody').addEventListener('change', e => { const c = e.target.closest('input[data-did]'); if(c) toggleDelta(c.dataset.did); });
@@ -1425,9 +1441,29 @@ function wire(){
   });
 }
 
+/* ---------------- Comfort mode (larger text, for low-vision reading) ---------------- */
+const COMFORT_KEY = 'laflow-lf03-comfort';
+function applyComfort(on){
+  document.documentElement.classList.toggle('comfort', on);
+  const b = document.getElementById('comfortBtn');
+  if(b) b.setAttribute('aria-pressed', String(on));
+}
+function loadComfort(){
+  let on = false;
+  try{ on = localStorage.getItem(COMFORT_KEY) === '1'; }catch(e){}
+  applyComfort(on);
+}
+function toggleComfort(){
+  const on = !document.documentElement.classList.contains('comfort');
+  applyComfort(on);
+  try{ localStorage.setItem(COMFORT_KEY, on ? '1' : '0'); }catch(e){}
+  toast(on ? 'Μεγαλύτερα γράμματα: ενεργά.' : 'Επαναφορά σε κανονικό μέγεθος.');
+}
+
 /* ---------------- Init ---------------- */
 load();
 wire();
+loadComfort();
 renderComposerChrome();
 renderDraft();
 switchTab('compose');
