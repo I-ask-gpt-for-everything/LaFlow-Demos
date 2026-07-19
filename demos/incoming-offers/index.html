@@ -89,6 +89,12 @@
   .topbar .feat p{font-size:13.5px;color:var(--sage-light);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .topbar .spacer{flex:1}
   .topbar .demo-tag{flex:none;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--sage-light);border:1px solid rgba(163,177,138,.4);padding:8px 13px;border-radius:999px;white-space:nowrap}
+  /* comfort / larger-text toggle */
+  .comfort-btn{flex:none;display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:6px 14px;border-radius:999px;cursor:pointer;background:rgba(250,246,238,.06);color:var(--cream);border:1px solid rgba(163,177,138,.4);font-family:inherit;font-size:12.5px;font-weight:600;white-space:nowrap;transition:background .16s,border-color .16s,color .16s}
+  .comfort-btn:hover{background:rgba(163,177,138,.16);border-color:rgba(163,177,138,.65)}
+  .comfort-btn[aria-pressed="true"]{background:var(--sage);border-color:var(--sage);color:var(--forest-deep)}
+  .comfort-btn .cf-mark{font-family:var(--serif);font-weight:700;line-height:1;font-size:17px}
+  html.comfort{zoom:1.15}
 
   /* ============ PAGE ============ */
   .page{max-width:1140px;margin:0 auto;padding:26px 28px 100px}
@@ -501,6 +507,8 @@
   @media(max-width:620px){
     .topbar{gap:12px;padding:10px 14px}
     .topbar .demo-tag{display:none}
+    .comfort-btn .comfort-lbl{display:none}
+    .comfort-btn{padding:6px 11px}
     .selbar .selhint{flex:1 1 100%;order:5}
   }
   /* phone (~375px): inbox single-column, detail stacked, compare scrolls in container */
@@ -577,6 +585,10 @@
     <p>Οι προσφορές που λαμβάνετε από προμηθευτές — διαβασμένες &amp; ταξινομημένες.</p>
   </div>
   <span class="spacer"></span>
+  <button class="comfort-btn" id="comfortBtn" type="button" aria-pressed="false" aria-label="Μεγαλύτερα γράμματα">
+    <span class="cf-mark" aria-hidden="true">Α<sup>+</sup></span>
+    <span class="comfort-lbl">Μεγαλύτερα γράμματα</span>
+  </button>
   <span class="demo-tag">Demo · Προσομοίωση AI</span>
 </header>
 
@@ -1695,7 +1707,27 @@ function setSort(s){
   toast('Ταξινόμηση: '+lbl+'.', 'info');
 }
 
+/* ---------------- Comfort / larger-text toggle ---------------- */
+const COMFORT_KEY = 'laflow-lf05-comfort';
+function applyComfort(on){
+  document.documentElement.classList.toggle('comfort', on);
+  const b = $('#comfortBtn'); if(b) b.setAttribute('aria-pressed', String(on));
+}
+function loadComfort(){
+  let on = false;
+  try{ on = localStorage.getItem(COMFORT_KEY) === '1'; }catch(e){}
+  applyComfort(on);
+}
+function toggleComfort(){
+  const on = !document.documentElement.classList.contains('comfort');
+  applyComfort(on);
+  try{ localStorage.setItem(COMFORT_KEY, on ? '1' : '0'); }catch(e){}
+  toast(on ? 'Μεγαλύτερα γράμματα: ενεργά.' : 'Επαναφορά σε κανονικό μέγεθος.', on ? 'check' : 'info');
+}
+
 function wire(){
+  /* comfort toggle */
+  $('#comfortBtn').addEventListener('click', toggleComfort);
   /* category chips (delegated) */
   $('#catChips').addEventListener('click', e => {
     const b = e.target.closest('.catchip'); if(!b) return;
@@ -1744,6 +1776,7 @@ function wire(){
 
 /* ---------------- Init ---------------- */
 loadState();
+loadComfort();
 wire();
 renderList();
 setInert(modalEl, true);   /* modal starts closed+inert; HTML also carries the static attribute */
