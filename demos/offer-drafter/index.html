@@ -70,7 +70,13 @@
   button{font-family:inherit;cursor:pointer;touch-action:manipulation}
   input,select{font-family:inherit}
   .serif{font-family:var(--serif)}
-  :focus-visible{outline:3px solid var(--gold);outline-offset:2px;border-radius:4px}
+  /* One ring for every control. Colour flips on dark surfaces: forest-deep is
+     invisible on the topbar, and gold measures only ~2.6:1 on cream. The old
+     rule also forced border-radius:4px, which drew a square-ish ring around
+     the pill-shaped chips — dropped. */
+  :root{--focus-ring:var(--forest-deep)}
+  .topbar{--focus-ring:var(--sage-light)}
+  :focus-visible{outline:3px solid var(--focus-ring);outline-offset:2px}
 
   /* ============ TOP BAR — the "letterhead" ============ */
   .topbar{
@@ -94,7 +100,7 @@
     background:rgba(181,148,69,.08);
   }
   /* comfort / larger-text toggle */
-  .comfort-btn{flex:none;display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:6px 14px;border-radius:var(--r-pill);cursor:pointer;background:rgba(250,246,238,.06);color:var(--cream);border:1px solid rgba(163,177,138,.4);font-family:inherit;font-size:12.5px;font-weight:600;white-space:nowrap;transition:background .16s,border-color .16s,color .16s}
+  .comfort-btn{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:44px;padding:6px 14px;border-radius:var(--r-pill);cursor:pointer;background:rgba(250,246,238,.06);color:var(--cream);border:1px solid rgba(163,177,138,.4);font-family:inherit;font-size:12.5px;font-weight:600;white-space:nowrap;transition:background .16s,border-color .16s,color .16s}
   .comfort-btn:hover{background:rgba(163,177,138,.16);border-color:rgba(163,177,138,.65)}
   .comfort-btn[aria-pressed="true"]{background:var(--sage);border-color:var(--sage);color:var(--forest-deep)}
   .comfort-btn .cf-mark{font-family:var(--serif);font-weight:700;line-height:1;font-size:17px}
@@ -169,7 +175,7 @@
   .search-box{position:relative;margin-bottom:11px}
   .search-box input{
     width:100%;min-height:46px;padding:10px 14px 10px 40px;border:1.5px solid var(--line-strong);
-    border-radius:var(--r-md);background:#fff;font-size:15.5px;color:var(--ink);outline:none;transition:border-color .15s,box-shadow .15s;
+    border-radius:var(--r-md);background:#fff;font-size:15.5px;color:var(--ink);transition:border-color .15s,box-shadow .15s;
   }
   .search-box input::placeholder{color:#8b968c}
   .search-box input:focus{border-color:var(--forest);box-shadow:0 0 0 3px rgba(26,60,52,.14)}
@@ -242,7 +248,7 @@
   .projsel{
     width:100%;min-height:52px;font-size:17px;font-weight:700;color:var(--forest);
     border:1.5px solid var(--line-strong);border-radius:var(--r-md);background:#fff;padding:10px 40px 10px 14px;
-    outline:none;appearance:none;cursor:pointer;
+    appearance:none;cursor:pointer;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%231a3c34' stroke-width='2.4'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     background-repeat:no-repeat;background-position:right 13px center;
   }

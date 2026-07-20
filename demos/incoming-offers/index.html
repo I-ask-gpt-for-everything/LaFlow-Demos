@@ -71,6 +71,18 @@
   input,select,textarea{font-family:inherit;color:inherit}
   svg{display:block}
 
+  /* ---- focus ring -------------------------------------------------------
+     One ring for every control. :where() keeps specificity at 0 so the
+     existing per-component focus styles below still win where they exist.
+     The colour flips on dark surfaces: forest-deep is invisible on the
+     topbar, and gold measures only ~2.6:1 on cream. */
+  :root{--focus-ring:var(--forest-deep)}
+  .topbar{--focus-ring:var(--sage-light)}
+  :where(button,a,input,select,textarea,summary,[tabindex],
+         [role="button"],[role="checkbox"],[role="switch"]):focus-visible{
+    outline:3px solid var(--focus-ring);outline-offset:2px;
+  }
+
   /* ============ TOP BAR ============ */
   .topbar{
     min-height:var(--topbar-h);background:var(--forest-deep);color:var(--cream);
@@ -90,11 +102,18 @@
   .topbar .spacer{flex:1}
   .topbar .demo-tag{flex:none;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--sage-light);border:1px solid rgba(163,177,138,.4);padding:8px 13px;border-radius:999px;white-space:nowrap}
   /* comfort / larger-text toggle */
-  .comfort-btn{flex:none;display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:6px 14px;border-radius:999px;cursor:pointer;background:rgba(250,246,238,.06);color:var(--cream);border:1px solid rgba(163,177,138,.4);font-family:inherit;font-size:12.5px;font-weight:600;white-space:nowrap;transition:background .16s,border-color .16s,color .16s}
+  .comfort-btn{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:44px;padding:6px 14px;border-radius:999px;cursor:pointer;background:rgba(250,246,238,.06);color:var(--cream);border:1px solid rgba(163,177,138,.4);font-family:inherit;font-size:12.5px;font-weight:600;white-space:nowrap;transition:background .16s,border-color .16s,color .16s}
   .comfort-btn:hover{background:rgba(163,177,138,.16);border-color:rgba(163,177,138,.65)}
   .comfort-btn[aria-pressed="true"]{background:var(--sage);border-color:var(--sage);color:var(--forest-deep)}
   .comfort-btn .cf-mark{font-family:var(--serif);font-weight:700;line-height:1;font-size:17px}
   html.comfort{zoom:1.15}
+  /* Viewport units resolve against the UNZOOMED viewport and are then scaled by
+     zoom, so a raw 94vw becomes 108vw once comfort is on — pushing both edges of
+     a centred overlay off-screen where body{overflow-x:hidden} makes them
+     unreachable rather than scrollable. Size viewport-relative overlays in
+     --vw-unit instead, which divides the budget back out. */
+  :root{--vw-unit:1vw}
+  html.comfort{--vw-unit:calc(1vw / 1.15)}
 
   /* ============ PAGE ============ */
   .page{max-width:1140px;margin:0 auto;padding:26px 28px 100px}
@@ -131,7 +150,7 @@
   .search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:19px;height:19px;color:var(--ink-soft);pointer-events:none}
   .search input{
     width:100%;min-height:48px;border:1.5px solid var(--line-strong);border-radius:999px;background:#fff;
-    padding:10px 17px 10px 42px;font-size:var(--fs-sm);outline:none;transition:border-color .14s,box-shadow .14s;
+    padding:10px 17px 10px 42px;font-size:var(--fs-sm);transition:border-color .14s,box-shadow .14s;
   }
   .search input:focus-visible{border-color:var(--forest);box-shadow:0 0 0 3px rgba(26,60,52,.14)}
   .sort-wrap{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
@@ -438,7 +457,7 @@
   body.modal-open{overflow:hidden}
   .modal{
     position:fixed;z-index:210;top:50%;left:50%;transform:translate(-50%,-48%) scale(.98);
-    width:min(640px,94vw);max-height:90vh;background:var(--paper);border-radius:var(--radius-lg);
+    width:min(640px,calc(94 * var(--vw-unit)));max-height:90vh;background:var(--paper);border-radius:var(--radius-lg);
     box-shadow:0 34px 90px rgba(18,48,42,.42);display:flex;flex-direction:column;opacity:0;visibility:hidden;
     transition:opacity .22s,visibility .22s,transform .22s;
   }

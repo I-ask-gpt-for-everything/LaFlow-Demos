@@ -66,6 +66,19 @@
   }
   ::selection{background:var(--sage-light);color:var(--forest-deep)}
   button{font-family:inherit;cursor:pointer}
+
+  /* ---- focus ring -------------------------------------------------------
+     One ring for every control. :where() keeps specificity at 0 so the
+     existing per-component focus styles below still win where they exist.
+     The colour flips on dark surfaces: forest-deep is invisible on the
+     topbar, and gold measures only ~2.6:1 on cream. */
+  :root{--focus-ring:var(--forest-deep)}
+  .topbar{--focus-ring:var(--sage-light)}
+  :where(button,a,input,select,textarea,summary,[tabindex],
+         [role="button"],[role="checkbox"],[role="switch"]):focus-visible{
+    outline:3px solid var(--focus-ring);outline-offset:2px;
+  }
+
   input,select,textarea{font-family:inherit}
   .serif{font-family:var(--serif)}
 
@@ -91,7 +104,7 @@
   .topbar .spacer{flex:1}
   .topbar .demo-tag{flex:none;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--sage-light);border:1px solid rgba(163,177,138,.4);padding:7px 13px;border-radius:999px;white-space:nowrap;background:rgba(0,0,0,.1)}
   /* comfort (larger text) toggle — serves the low-vision persona */
-  .comfort-btn{flex:none;display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:6px 14px;border-radius:999px;cursor:pointer;background:rgba(250,246,238,.06);color:var(--cream);border:1px solid rgba(163,177,138,.4);font-family:inherit;font-size:12.5px;font-weight:600;white-space:nowrap;transition:background .15s,border-color .15s,color .15s}
+  .comfort-btn{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:44px;padding:6px 14px;border-radius:999px;cursor:pointer;background:rgba(250,246,238,.06);color:var(--cream);border:1px solid rgba(163,177,138,.4);font-family:inherit;font-size:12.5px;font-weight:600;white-space:nowrap;transition:background .15s,border-color .15s,color .15s}
   .comfort-btn:hover{background:rgba(250,246,238,.12)}
   .comfort-btn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
   .comfort-btn[aria-pressed="true"]{background:var(--sage);border-color:var(--sage);color:var(--forest-deep)}

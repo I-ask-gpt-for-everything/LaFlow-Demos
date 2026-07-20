@@ -57,6 +57,19 @@
   }
   ::selection{background:var(--sage-light);color:var(--forest-deep)}
   button{font-family:inherit;cursor:pointer}
+
+  /* ---- focus ring -------------------------------------------------------
+     One ring for every control. :where() keeps specificity at 0 so the
+     existing per-component focus styles below still win where they exist.
+     The colour flips on dark surfaces: forest-deep is invisible on the
+     topbar, and gold measures only ~2.6:1 on cream. */
+  :root{--focus-ring:var(--forest-deep)}
+  .topbar{--focus-ring:var(--sage-light)}
+  :where(button,a,input,select,textarea,summary,[tabindex],
+         [role="button"],[role="checkbox"],[role="switch"]):focus-visible{
+    outline:3px solid var(--focus-ring);outline-offset:2px;
+  }
+
   input,select,textarea{font-family:inherit}
   h1,h2,h3{font-family:var(--serif)}
 
@@ -76,7 +89,7 @@
   .topbar .spacer{flex:1}
   .demo-tag{flex:none;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--sage-light);border:1px solid rgba(163,177,138,.4);padding:7px 12px;border-radius:999px;white-space:nowrap}
   /* comfort (larger text) toggle — serves the low-vision persona */
-  .comfort-btn{flex:none;display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:6px 14px;border-radius:999px;cursor:pointer;background:rgba(250,246,238,.06);color:var(--cream);border:1px solid rgba(163,177,138,.4);font-family:inherit;font-size:12.5px;font-weight:600;white-space:nowrap;transition:background .15s,border-color .15s,color .15s}
+  .comfort-btn{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:44px;padding:6px 14px;border-radius:999px;cursor:pointer;background:rgba(250,246,238,.06);color:var(--cream);border:1px solid rgba(163,177,138,.4);font-family:inherit;font-size:12.5px;font-weight:600;white-space:nowrap;transition:background .15s,border-color .15s,color .15s}
   .comfort-btn:hover{background:rgba(250,246,238,.12)}
   .comfort-btn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
   .comfort-btn[aria-pressed="true"]{background:var(--sage);border-color:var(--sage);color:var(--forest-deep)}
@@ -84,6 +97,12 @@
   .comfort-btn .cf-mark sup{font-size:.62em}
   /* the actual scale-up: page-level zoom so ALL px-based text/UI grows uniformly and media queries reflow */
   html.comfort{zoom:1.15}
+  /* Viewport units resolve against the UNZOOMED viewport and are then scaled by
+     zoom, so any overlay sized near the viewport width spills past both edges
+     once comfort is on — and body{overflow-x:hidden} makes the spill
+     unreachable rather than scrollable. Size such overlays in --vw-unit. */
+  :root{--vw-unit:1vw}
+  html.comfort{--vw-unit:calc(1vw / 1.15)}
 
   /* ============ PAGE HEAD (editorial letterhead feel) ============ */
   .page{max-width:1280px;margin:0 auto;padding:28px 26px 70px}
@@ -347,7 +366,7 @@
   }
   .whybtn svg{width:17px;height:17px;flex:none;color:var(--gold-deep)}
   .whypop{
-    position:absolute;bottom:calc(100% + 10px);left:0;z-index:60;width:min(430px,calc(100vw - 40px));
+    position:absolute;bottom:calc(100% + 10px);left:0;z-index:60;width:min(430px,calc(100 * var(--vw-unit) - 40px));
     background:#fff;border:1.5px solid var(--sage);border-radius:var(--r-lg);box-shadow:var(--shadow-3);
     padding:16px 18px;
   }
