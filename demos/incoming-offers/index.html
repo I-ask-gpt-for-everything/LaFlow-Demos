@@ -170,7 +170,14 @@
     border-radius:var(--radius);padding:12px 16px;margin-bottom:16px;box-shadow:var(--shadow-card);
     border:1px solid rgba(181,148,69,.3);
   }
-  .selbar[hidden]{display:none}
+  /* The first click anyone makes in this app inserts this bar. A hard display
+     flip shoved the entire list down in one frame; grid-template-rows lets it
+     open from zero height without hard-coding a height. */
+  .selbar-slot{display:grid;grid-template-rows:0fr;transition:grid-template-rows .22s cubic-bezier(.4,0,.2,1),margin-bottom .22s}
+  .selbar-slot.open{grid-template-rows:1fr;margin-bottom:16px}
+  .selbar-slot > .selbar{min-height:0;overflow:hidden;margin-bottom:0}
+  .selbar[hidden]{display:flex}
+  @media(prefers-reduced-motion:reduce){.selbar-slot{transition:none}}
   .selbar .selcount{font-weight:700;font-size:var(--fs-sm);display:inline-flex;align-items:center;gap:9px}
   .selbar .selcount .sn{background:var(--gold);color:var(--forest-deep);border-radius:999px;min-width:27px;height:27px;padding:0 8px;display:inline-flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
   .selbar .selhint{font-size:var(--fs-xs);color:var(--sage-light);flex:1 1 auto;min-width:0}
@@ -194,7 +201,8 @@
     border-left:5px solid var(--a,var(--forest));border-radius:var(--radius);box-shadow:var(--shadow-card);
     overflow:hidden;transition:box-shadow .14s,border-color .14s,transform .14s;
   }
-  .offer:hover{box-shadow:var(--shadow-float);border-color:var(--line-strong)}
+  .offer:hover{box-shadow:var(--shadow-float);border-color:var(--line-strong);transform:translateY(-2px)}
+  @media(prefers-reduced-motion:reduce){.offer:hover{transform:none}}
   .offer.sel{border-color:var(--a,var(--forest));box-shadow:0 0 0 2px var(--a,var(--forest)) inset,var(--shadow-card)}
   .ck{
     flex:none;width:54px;min-height:44px;border:none;border-right:1px solid var(--line);background:var(--cream-alt);
@@ -321,9 +329,12 @@
   .doc-foot{margin-top:19px;padding-top:12px;border-top:1px solid var(--gold);font-size:10.5px;color:var(--ink-soft);display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
 
   /* --- Extraction panel ("AI index card") --- */
-  .xpanel{background:#fff;border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);overflow:hidden;position:relative}
-  .xp-tab{position:absolute;top:-13px;left:22px;background:var(--forest-deep);color:var(--sage-light);font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:6px 13px;border-radius:8px 8px 0 0}
-  .xp-head{padding:22px 20px 15px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fbfcf7,#fff)}
+  /* overflow stays visible so the file-tab can overhang the top edge — the tab is
+     the whole point of the index-card metaphor. The head instead rounds its own
+     top corners, which is all the clipping this panel ever needed. */
+  .xpanel{background:#fff;border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-card);position:relative}
+  .xp-tab{position:absolute;top:-13px;left:22px;background:var(--forest-deep);color:var(--sage-light);font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:6px 13px;border-radius:8px 8px 0 0;box-shadow:0 -2px 6px rgba(18,48,42,.16)}
+  .xp-head{padding:22px 20px 15px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fbfcf7,#fff);border-radius:var(--radius-lg) var(--radius-lg) 0 0}
   .xp-kick{display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-deep);font-weight:700}
   .xp-kick svg{width:15px;height:15px}
   .xp-head h2{font-family:var(--serif);font-weight:600;font-size:var(--fs-xl);color:var(--forest);margin-top:6px;line-height:1.12}
@@ -406,11 +417,17 @@
   .btn-ghost.danger:hover{color:var(--danger);border-color:var(--danger);background:#f7ebe5}
 
   /* ============ COMPARE VIEW — "ledger spread" ============ */
-  .cmp-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;box-shadow:var(--shadow-card)}
-  .cmp-tbl{border-collapse:collapse;width:100%;min-width:540px}
+  /* max-height makes this a real vertical scroll container, which is what the
+     sticky header below needs to stick against — without it the supplier names
+     scrolled away with the page on a long comparison. */
+  .cmp-scroll{overflow:auto;max-height:min(74vh,660px);-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;box-shadow:var(--shadow-card);scroll-snap-type:x proximity}
+  .cmp-tbl{border-collapse:separate;border-spacing:0;width:100%;min-width:540px}
   .cmp-tbl th,.cmp-tbl td{border-bottom:1px solid var(--line);padding:13px 15px;text-align:left;vertical-align:top}
   .cmp-tbl thead th{position:sticky;top:0;background:var(--forest);color:#fff;border-bottom:none;z-index:2}
-  .cmp-tbl thead th.rowlbl{background:var(--forest-deep)}
+  /* the corner cell must pin on BOTH axes, or it slides out from over the pinned
+     label column and the table visibly de-registers at the top-left. */
+  .cmp-tbl thead th.rowlbl{background:var(--forest-deep);left:0;z-index:4}
+  .cmp-col{scroll-snap-align:start}
   .cmp-col{min-width:186px}
   .ch-sup{font-weight:700;font-size:15px;line-height:1.2;display:flex;align-items:center;gap:8px}
   .ch-sup .cava{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.16);display:grid;place-items:center;font-family:var(--serif);font-weight:600;font-size:13px;flex:none;border:1px solid rgba(255,255,255,.28)}
@@ -432,9 +449,13 @@
   .cell.gap{color:var(--c-grey);font-style:italic;font-weight:600}
   .cmp-tbl td.best{background:var(--best-bg);box-shadow:inset -1px 0 0 var(--line-strong),inset 3px 0 0 var(--best-line);position:relative}
   .cmp-tbl td.best::before{content:'';position:absolute;top:0;right:0;border-style:solid;border-width:0 15px 15px 0;border-color:var(--gold) transparent transparent transparent}
-  .cell .best-tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;color:#43571f;margin-left:7px;white-space:nowrap}
-  .cell .best-tag svg{width:12px;height:12px}
-  .cell .solo-tag{display:inline-block;font-size:11px;font-weight:700;color:var(--gold-deep);margin-left:7px}
+  /* These tags are emitted as SIBLINGS of .cell inside the <td>, not descendants,
+     so the old `.cell .best-tag` selectors never matched: the tag was unstyled and
+     its inline SVG fell back to its intrinsic size — a 234px checkmark that blew
+     the winning row up to ~315px tall. Scoped to the cell they actually live in. */
+  .cmp-tbl td .best-tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;color:#43571f;margin-left:7px;white-space:nowrap;vertical-align:middle}
+  .cmp-tbl td .best-tag svg{width:12px;height:12px;flex:none}
+  .cmp-tbl td .solo-tag{display:inline-block;font-size:11px;font-weight:700;color:var(--gold-deep);margin-left:7px;vertical-align:middle}
 
   .verdict{
     margin-top:20px;background:#fff;border:1.5px solid var(--sage);border-radius:var(--radius-lg);
@@ -449,7 +470,20 @@
   .verdict .pick .pk-lbl{font-size:var(--fs-sm);color:var(--ink-soft);font-style:normal;font-family:var(--sans)}
   .verdict .pick .pk-lbl b{color:var(--forest);font-weight:700}
   .cmp-hint{font-size:13px;color:var(--ink-soft);margin-top:12px;display:flex;gap:7px;align-items:center}
+  .cmp-hint[hidden]{display:none}
   .cmp-hint svg{width:15px;height:15px;flex:none;color:var(--gold-deep)}
+  /* A column sitting off the right edge with nothing to say so is the single most
+     confusing thing in this view on a phone. The fade marks the cut, and #cmpHint
+     names how many suppliers are still out there. */
+  .cmp-wrap{position:relative}
+  .cmp-fade{
+    position:absolute;top:0;right:0;bottom:0;width:38px;pointer-events:none;
+    border-radius:0 var(--radius-lg) var(--radius-lg) 0;
+    background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.92));
+    opacity:0;transition:opacity .18s;
+  }
+  .cmp-wrap.scrollable .cmp-fade{opacity:1}
+  .cmp-wrap.at-end .cmp-fade{opacity:0}
 
   /* ============ NEGOTIATION MODAL — "stationery" ============ */
   .overlay{position:fixed;inset:0;z-index:200;background:rgba(18,48,42,.55);opacity:0;visibility:hidden;transition:opacity .22s,visibility .22s}
@@ -642,7 +676,7 @@
       </div>
     </div>
 
-    <div class="selbar" id="selBar" hidden>
+    <div class="selbar-slot" id="selSlot"><div class="selbar" id="selBar" hidden>
       <span class="selcount"><span class="sn" id="selN">0</span> επιλεγμένες</span>
       <span class="selhint" id="selHint"></span>
       <span class="spacer"></span>
@@ -651,7 +685,7 @@
       <button class="btn-compare" id="compareBtn" type="button" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v18M15 3v18M4 8h5M4 14h5M15 6h5M15 12h5"/></svg>
         <span id="compareLbl">Σύγκριση</span></button>
-    </div>
+    </div></div>
 
     <div class="list" id="offerList"></div>
   </section>
@@ -676,7 +710,14 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg>Εισερχόμενες</button>
       <span class="bb-tt"><span class="bb-eyebrow">Συγκριτικός πίνακας</span><span class="bb-title" id="cmpTitle">Σύγκριση προσφορών</span></span>
     </div>
-    <div class="cmp-scroll"><table class="cmp-tbl" id="cmpTable"></table></div>
+    <div class="cmp-wrap">
+      <div class="cmp-scroll" id="cmpScroll" tabindex="0" role="region" aria-label="Συγκριτικός πίνακας προσφορών"><table class="cmp-tbl" id="cmpTable"></table></div>
+      <div class="cmp-fade" id="cmpFade" aria-hidden="true"></div>
+    </div>
+    <p class="cmp-hint" id="cmpHint" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      <span id="cmpHintTxt"></span>
+    </p>
     <div class="verdict" id="cmpVerdict"></div>
   </section>
 
@@ -1008,12 +1049,32 @@ const amountIsAmber = o => (o.conf.amount != null && o.conf.amount < 0.9) && cor
 /* ============================================================
    VIEW SWITCH
    ============================================================ */
+/* Remembers which card opened a sub-view so leaving it can put focus back where
+   it came from, instead of dropping the user at the top of the document. */
+let viewOpener = null;
+
 function show(view){
+  const prev = state.view;
   state.view = view;
   $('#viewList').classList.toggle('hidden', view!=='list');
   $('#viewDetail').classList.toggle('hidden', view!=='detail');
   $('#viewCompare').classList.toggle('hidden', view!=='compare');
   window.scrollTo({ top:0, behavior: REDUCED() ? 'auto' : 'smooth' });
+
+  if(view === prev) return;
+  if(view === 'list'){
+    /* returning: hand focus back to the card that was opened, if it still exists */
+    const back = viewOpener && document.contains(viewOpener) ? viewOpener : null;
+    viewOpener = null;
+    if(back){ back.focus(); return; }
+    const first = $('#offerList .offer-open');
+    if(first) first.focus();
+  } else {
+    /* entering a sub-view: focus its back button so the next Tab is inside it
+       and screen readers announce where they landed */
+    const btn = view === 'detail' ? $('#detailBack') : $('#compareBack');
+    if(btn) btn.focus();
+  }
 }
 
 /* ============================================================
@@ -1043,7 +1104,16 @@ function renderCatChips(){
   html += '<button class="catchip arch" type="button" data-cat="archive" aria-pressed="'+(state.category==='archive')+'" style="--cc:#7d8a80">'+
     ICO.archive.replace('<svg','<span class="ci" aria-hidden="true"><svg')+'</span>'+
     'Αρχείο<span class="cn">'+c.archive+'</span></button>';
+  const hadFocus = document.activeElement
+    && wrap.contains(document.activeElement)
+    && document.activeElement.dataset.cat;
   wrap.innerHTML = html;
+  /* the rebuild detaches the chip that was just activated; without this, a
+     keyboard user pressing Enter on a category is dumped back to <body>. */
+  if(hadFocus){
+    const again = wrap.querySelector('[data-cat="'+hadFocus+'"]');
+    if(again) again.focus();
+  }
 }
 
 function visibleOffers(){
@@ -1133,8 +1203,14 @@ function selectedOffers(){ return [...state.selection].map(byId).filter(Boolean)
 function renderSelBar(){
   const sel = selectedOffers();
   const bar = $('#selBar');
-  if(sel.length === 0){ bar.hidden = true; return; }
+  const slot = $('#selSlot');
+  if(sel.length === 0){
+    bar.hidden = true;
+    if(slot) slot.classList.remove('open');
+    return;
+  }
   bar.hidden = false;
+  if(slot) slot.classList.add('open');
   $('#selN').textContent = sel.length;
   const cats = new Set(sel.map(catOf));
   const btn = $('#compareBtn');
@@ -1508,6 +1584,36 @@ function buildCompare(ids){
   $('#cmpTable').innerHTML = thead + tbody;
   renderVerdict(offers, cat);
   show('compare');
+  syncCmpScroll(offers.length);
+}
+
+/* The compare table is wider than a phone: at 500px a third supplier sits almost
+   entirely off-screen. Mark the cut with a fade and say in words how many columns
+   are still out of view, rather than leaving the user to discover it by accident. */
+function syncCmpScroll(colCount){
+  const sc = $('#cmpScroll'), wrap = sc && sc.parentElement, hint = $('#cmpHint');
+  if(!sc || !wrap || !hint) return;
+  const update = () => {
+    const overflow = sc.scrollWidth - sc.clientWidth;
+    const scrollable = overflow > 4;
+    wrap.classList.toggle('scrollable', scrollable);
+    wrap.classList.toggle('at-end', scrollable && sc.scrollLeft >= overflow - 4);
+    if(!scrollable){ hint.hidden = true; return; }
+    // how many supplier columns are not fully visible right now
+    const cols = [...sc.querySelectorAll('thead th.cmp-col')];
+    const right = sc.getBoundingClientRect().right;
+    const off = cols.filter(c => c.getBoundingClientRect().right > right + 2).length;
+    hint.hidden = off === 0;
+    if(off > 0){
+      $('#cmpHintTxt').textContent = off === 1
+        ? 'Σύρετε πλάγια — 1 ακόμη προσφορά δεξιά.'
+        : 'Σύρετε πλάγια — ' + off + ' ακόμη προσφορές δεξιά.';
+    }
+  };
+  sc.onscroll = update;
+  update();
+  // column widths settle a frame after innerHTML lands
+  requestAnimationFrame(update);
 }
 
 function renderVerdict(offers, cat){
@@ -1603,6 +1709,9 @@ function genNegotiation(o){
    of the console warning. */
 const modalEl = $('#modal');
 const mainEl  = $('#pageMain');
+/* .topbar is a SIBLING of #pageMain, so inerting the main region alone left the
+   brand row — including the comfort toggle — tabbable behind an open dialog. */
+const barEl   = document.querySelector('.topbar');
 function setInert(el, v){ if(!el) return; try{ el.inert = v; }catch(e){} if(v) el.setAttribute('inert',''); else el.removeAttribute('inert'); }
 let lastFocusEl = null;
 
@@ -1615,6 +1724,7 @@ function openNegotiation(id){
   $('#mSub').textContent = o.supplier+' · '+eur(amountOf(o));
   setInert(modalEl, false);
   setInert(mainEl, true);
+  setInert(barEl, true);
   document.body.classList.add('modal-open');
   runDraftTheater(o);
   setTimeout(()=>{ const c=$('#mClose'); if(c) c.focus(); }, 60);
@@ -1627,6 +1737,7 @@ function closeNegotiation(){
   document.body.classList.remove('modal-open');
   setInert(modalEl, true);
   setInert(mainEl, false);
+  setInert(barEl, false);
   if(lastFocusEl && document.contains(lastFocusEl) && typeof lastFocusEl.focus === 'function') lastFocusEl.focus();
   lastFocusEl = null;
 }
@@ -1763,14 +1874,14 @@ function wire(){
     const ck = e.target.closest('[data-ck]');
     if(ck){ toggleSelect(ck.dataset.ck); return; }
     const op = e.target.closest('[data-open]');
-    if(op){ openDetail(op.dataset.open); return; }
+    if(op){ viewOpener = op; openDetail(op.dataset.open); return; }
   });
   /* selection bar */
   $('#clearSel').addEventListener('click', clearSelection);
-  $('#compareBtn').addEventListener('click', () => {
+  $('#compareBtn').addEventListener('click', (e) => {
     const sel = selectedOffers();
     const cats = new Set(sel.map(catOf));
-    if(sel.length>=2 && cats.size===1) buildCompare(sel.map(o=>o.id));
+    if(sel.length>=2 && cats.size===1){ viewOpener = e.currentTarget; buildCompare(sel.map(o=>o.id)); }
   });
   /* nav backs */
   $('#detailBack').addEventListener('click', ()=>{ state.detailId=null; show('list'); });
