@@ -51,6 +51,7 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{min-height:100%}
+  html{scrollbar-gutter:stable}
   body{
     font-family:var(--sans);color:var(--ink);
     line-height:1.5;-webkit-font-smoothing:antialiased;font-size:17px;
@@ -197,7 +198,16 @@
   .grp-head .chev{flex:none;width:22px;height:22px;color:var(--ink-soft);transition:transform .2s;margin-left:2px}
   .grp-head[aria-expanded="false"] .chev{transform:rotate(-90deg)}
   .grp-body{padding:0 14px 12px}
+  /* The chevron rotated smoothly while the body vanished in a single frame.
+     Animated with grid-template-rows, which needs no hard-coded height. NOT via
+     the [hidden] attribute: overriding its display would leave collapsed rows in
+     the tab order and the accessibility tree, so collapsing is expressed with a
+     class for the visuals plus `inert` for semantics. */
+  .grp-body{display:grid;grid-template-rows:1fr;transition:grid-template-rows .24s cubic-bezier(.4,0,.2,1),padding .24s,opacity .18s}
+  .grp-body > *{min-height:0}
   .grp-body[hidden]{display:none}
+  .grp-body.collapsed{grid-template-rows:0fr;padding-top:0;padding-bottom:0;opacity:0;overflow:hidden;pointer-events:none}
+  @media(prefers-reduced-motion:reduce){.grp-body{transition:none}}
 
   /* rows */
   .row{
@@ -239,6 +249,10 @@
   .r-health svg{width:13px;height:13px}
   .r-right{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px;align-self:center}
   .r-amount{font-size:18px;font-weight:700;color:var(--forest);font-variant-numeric:tabular-nums;white-space:nowrap;font-family:var(--serif)}
+  /* Quieter than .r-amount on purpose: an offer amount is money on the table,
+     a project value is only context for prioritising. */
+  .r-projval{display:flex;align-items:baseline;gap:5px;font-family:var(--serif);font-size:15px;font-weight:600;color:var(--ink-soft);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .r-projval i{font-family:var(--sans);font-style:normal;font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-faint,var(--ink-soft));opacity:.8}
   .r-go{width:22px;height:22px;color:var(--ink-soft);flex:none}
 
   /* empty state per group */
@@ -448,17 +462,20 @@
     .rail-stat{padding:13px 14px 14px}
     .st-count{font-size:32px}
     .rail-block{flex:1 1 100%}
-    .sortseg{flex-direction:column;width:100%}
-    .sortbtn{width:100%;padding:10px 13px;font-size:14px}
+    .sortseg{flex-direction:row;width:100%;gap:8px}
+    .sortbtn{flex:1 1 0;min-width:0;width:auto;padding:10px 10px;font-size:13.5px;justify-content:center}
     .snoozechip{flex:1 1 100%;padding:10px 13px;font-size:14px}
-    .rail-legend{flex:1 1 100%}
+    /* aria-hidden decoration — it should never outrank the actual work on the
+       smallest screen */
+    .rail-legend{display:none}
+    .rail-intro{display:none}
     .grp-head{padding:13px 14px;gap:10px}
     .grp-head .g-name{font-size:19.5px}
     .grp-head .g-ico{width:34px;height:34px}
     .grp-head .g-cnt{width:32px;height:32px;font-size:14.5px}
     .grp-body{padding:0 9px 9px}
     .row{padding:12px 12px;gap:11px;flex-wrap:wrap}
-    .r-right{flex-basis:100%;flex-direction:row;justify-content:space-between;align-items:center;margin-top:2px;padding-top:8px;border-top:1px dashed var(--line)}
+    .r-right{flex-basis:100%;flex-direction:row;justify-content:flex-start;align-items:center;margin-top:2px;padding-top:8px;border-top:1px dashed var(--line)}
     .r-go{display:none}
     .r-client{font-size:16.5px}
     .drawer{
@@ -468,6 +485,9 @@
     body.drawer-open .drawer{transform:none}
     .d-head{border-radius:18px 18px 0 0;padding:12px 16px 14px}
     .d-head::before{content:'';display:block;width:44px;height:4px;border-radius:2px;background:var(--line-strong);margin:0 auto 8px}
+    .d-head{touch-action:none;cursor:grab}
+    .drawer.dragging{transition:none}
+    .d-head:active{cursor:grabbing}
     .d-title{font-size:24px}
     .d-body{padding:15px 16px 20px}
     .btn-copy,.btn-sent{min-width:100%;flex:1 1 100%}
@@ -689,29 +709,29 @@ const GROUP_ORDER = ['offer','waiting','stale'];
    bare, generic «σας» — small warmth nit from the LF-04 polish backlog. */
 const THREADS = [
   /* ===== Προσφορές χωρίς απάντηση (4) ===== */
-  { id:'t1', group:'offer', color:'#46603f',
+  { id:'t1', group:'offer', color:'#46603f', projValue:14200,
     client:'κ. Νίκος Βασιλείου', greet:'κ. Βασιλείου', proj:'Roof garden Κολωνάκι', phase:'Προσφορά',
     subject:'Προσφορά διαμόρφωσης ταράτσας', amount:14200, age:12, expiresIn:5, avgResp:2, health:'declining',
     scope:'τη διαμόρφωση της ταράτσας σας στο Κολωνάκι',
     summary:'Στείλατε την προσφορά για τη διαμόρφωση της ταράτσας στο Κολωνάκι (14.200 €) πριν από 12 ημέρες. Δεν υπάρχει ακόμη απάντηση, παρότι ο κ. Βασιλείου απαντούσε πάντα μέσα σε δύο ημέρες. Η ισχύς της προσφοράς λήγει σύντομα.' },
-  { id:'t2', group:'offer', color:'#a05526',
+  { id:'t2', group:'offer', color:'#a05526', projValue:48500,
     client:'Alpha Real Estate Α.Ε.', greet:'στην Alpha Real Estate', proj:'Campus Μαρούσι', phase:'Προσφορά',
     subject:'Προσφορά περιβάλλοντος χώρου — Campus Μαρούσι', amount:48500, age:6, expiresIn:9, avgResp:5, health:'good',
     scope:'τη διαμόρφωση του περιβάλλοντος χώρου του εταιρικού campus στο Μαρούσι',
     summary:'Η προσφορά για τον περιβάλλοντα χώρο του εταιρικού campus (48.500 €) εστάλη στην Alpha Real Estate πριν από 6 ημέρες. Είναι η προσφορά με τη μεγαλύτερη αξία που εκκρεμεί αυτή τη στιγμή.' },
-  { id:'t3', group:'offer', color:'#5b6b7a',
+  { id:'t3', group:'offer', color:'#5b6b7a', projValue:22800,
     client:'κ. Γιώργος Παπαδόπουλος', greet:'κ. Παπαδόπουλε', proj:'Νέα κατοικία Βουλιαγμένη', phase:'Προσφορά',
     subject:'Προσφορά κήπου νέας κατοικίας', amount:22800, age:9, expiresIn:6, avgResp:null, health:'good',
     scope:'τη διαμόρφωση του κήπου της νέας σας κατοικίας στη Βουλιαγμένη',
     summary:'Νέος πελάτης: στείλατε την πρώτη προσφορά για τον κήπο της κατοικίας στη Βουλιαγμένη (22.800 €) πριν από 9 ημέρες. Μια πρώτη προσφορά χωρίς απάντηση αξίζει μια ευγενική υπενθύμιση.' },
-  { id:'t4', group:'offer', color:'#7a4a52',
+  { id:'t4', group:'offer', color:'#7a4a52', projValue:9600,
     client:'Ξενοδοχείο Αστέρια', greet:'στο Ξενοδοχείο Αστέρια', proj:'Αίθριο ξενοδοχείου Γλυφάδα', phase:'Προσφορά',
     subject:'Προσφορά διαμόρφωσης αίθριου ξενοδοχείου', amount:9600, age:3, expiresIn:12, avgResp:null, health:'good',
     scope:'τη διαμόρφωση του αίθριου του ξενοδοχείου σας στη Γλυφάδα',
     summary:'Η προσφορά για το αίθριο του ξενοδοχείου Αστέρια (9.600 €) εστάλη μόλις πριν από 3 ημέρες. Ακόμη νωρίς — μια σύντομη υπενθύμιση κρατά τη συζήτηση ζωντανή.' },
 
   /* ===== Περιμένουν εμάς (4) ===== */
-  { id:'t5', group:'waiting', color:'#1a3c34',
+  { id:'t5', group:'waiting', color:'#1a3c34', projValue:68000,
     client:'κα Ελένη Δημητρίου', greet:'κα Δημητρίου', proj:'Βίλα Εκάλη', phase:'Κατασκευή',
     subject:'Ερώτηση για λίστα φυτών', amount:0, age:4, health:'good',
     reqShort:'Ζήτησε τη λίστα φυτών για τον κήπο',
@@ -719,7 +739,7 @@ const THREADS = [
     promise:'ετοιμάζω αναλυτική πρόταση με τα είδη και τις ποσότητες, προσαρμοσμένη στον προσανατολισμό του κήπου',
     timeframe:'Θα την έχετε στα χέρια σας έως το τέλος της εβδομάδας.',
     summary:'Η κα Δημητρίου ζήτησε τη λίστα φυτών για τον κήπο της Βίλας στην Εκάλη πριν από 4 ημέρες. Η μπάλα είναι στο δικό μας γήπεδο — περιμένει τη δική μας απάντηση.' },
-  { id:'t6', group:'waiting', color:'#8a6d2a',
+  { id:'t6', group:'waiting', color:'#8a6d2a', projValue:12400,
     client:'οικογένεια Αλεξίου', greet:'στην οικογένεια Αλεξίου', proj:'Κήπος Κηφισιά', phase:'Συντήρηση',
     subject:'Πρόγραμμα συντήρησης φθινοπώρου', amount:0, age:2, health:'good',
     reqShort:'Ζήτησε το πρόγραμμα συντήρησης φθινοπώρου',
@@ -727,7 +747,7 @@ const THREADS = [
     promise:'οριστικοποιώ το χρονοδιάγραμμα των επισκέψεων και τις εργασίες ανά μήνα',
     timeframe:'Θα σας το στείλω μέσα στις επόμενες ημέρες.',
     summary:'Η οικογένεια Αλεξίου ζήτησε το πρόγραμμα συντήρησης για το φθινόπωρο πριν από 2 ημέρες. Πρόσφατο αίτημα — μια γρήγορη απάντηση δείχνει συνέπεια.' },
-  { id:'t7', group:'waiting', color:'#5b6b7a',
+  { id:'t7', group:'waiting', color:'#5b6b7a', projValue:22800,
     client:'κ. Γιώργος Παπαδόπουλος', greet:'κ. Παπαδόπουλε', proj:'Νέα κατοικία Βουλιαγμένη', phase:'Προσφορά',
     subject:'Αίτημα για εναλλακτική πρόταση', amount:0, age:7, health:'good',
     reqShort:'Ζήτησε εναλλακτική με μικρότερο προϋπολογισμό',
@@ -735,7 +755,7 @@ const THREADS = [
     promise:'διαμορφώνω μια δεύτερη εκδοχή που κρατά τα βασικά στοιχεία του σχεδιασμού με χαμηλότερο κόστος',
     timeframe:'Θα την έχετε τις επόμενες 2-3 ημέρες.',
     summary:'Ο κ. Παπαδόπουλος ζήτησε μια εναλλακτική πρόταση με μικρότερο προϋπολογισμό πριν από 7 ημέρες. Όσο καθυστερεί η απάντηση, τόσο κινδυνεύει να κρυώσει το ενδιαφέρον ενός νέου πελάτη.' },
-  { id:'t8', group:'waiting', color:'#7a4a52',
+  { id:'t8', group:'waiting', color:'#7a4a52', projValue:9600,
     client:'Ξενοδοχείο Αστέρια', greet:'στο Ξενοδοχείο Αστέρια', proj:'Αίθριο ξενοδοχείου Γλυφάδα', phase:'Προσφορά',
     subject:'Ερώτηση για δείγματα & χρονοδιάγραμμα', amount:0, age:5, health:'good',
     reqShort:'Ζήτησε δείγματα υλικών και χρονοδιάγραμμα',
@@ -745,19 +765,19 @@ const THREADS = [
     summary:'Το ξενοδοχείο Αστέρια ζήτησε δείγματα υλικών και χρονοδιάγραμμα υλοποίησης πριν από 5 ημέρες, ώστε να προχωρήσει η απόφαση. Περιμένουν τη δική μας ανταπόκριση.' },
 
   /* ===== Παλιές συζητήσεις (3) ===== */
-  { id:'t9', group:'stale', color:'#46603f',
+  { id:'t9', group:'stale', color:'#46603f', projValue:14200,
     client:'κ. Νίκος Βασιλείου', greet:'κ. Βασιλείου', proj:'Roof garden Κολωνάκι', phase:'Προσφορά',
     subject:'Ιδέες για φωτισμό ταράτσας', amount:0, age:15, health:'declining',
     subjPhrase:'τις ιδέες φωτισμού για την ταράτσα',
     question:'αν θα θέλατε να προχωρήσουμε σε μια ολοκληρωμένη πρόταση',
     summary:'Η συζήτηση για τον φωτισμό της ταράτσας στο Κολωνάκι σταμάτησε πριν από 15 ημέρες. Ο ίδιος πελάτης δείχνει πτωτική τάση στην επικοινωνία — αξίζει μια διακριτική κίνηση.' },
-  { id:'t10', group:'stale', color:'#8a6d2a',
+  { id:'t10', group:'stale', color:'#8a6d2a', projValue:12400,
     client:'οικογένεια Αλεξίου', greet:'στην οικογένεια Αλεξίου', proj:'Κήπος Κηφισιά', phase:'Συντήρηση',
     subject:'Αντικατάσταση αυτόματου ποτίσματος', amount:0, age:19, health:'good',
     subjPhrase:'την αντικατάσταση του αυτόματου ποτίσματος',
     question:'αν εξακολουθεί να σας ενδιαφέρει να το δρομολογήσουμε πριν τον χειμώνα',
     summary:'Η κουβέντα για την αντικατάσταση του αυτόματου ποτίσματος στην Κηφισιά έμεινε στη μέση εδώ και 19 ημέρες — είναι η παλαιότερη εκκρεμότητά σας αυτή τη στιγμή.' },
-  { id:'t11', group:'stale', color:'#a05526',
+  { id:'t11', group:'stale', color:'#a05526', projValue:48500,
     client:'Alpha Real Estate Α.Ε.', greet:'στην Alpha Real Estate', proj:'Campus Μαρούσι', phase:'Προσφορά',
     subject:'Επέκταση χώρου στάθμευσης — παλαιότερη συζήτηση', amount:0, age:13, health:'good',
     subjPhrase:'την επέκταση του χώρου στάθμευσης',
@@ -923,7 +943,7 @@ const isSnoozed = t => { const s = state.ts[t.id]; return s.status === 'active' 
 const isVisible = t => { const s = state.ts[t.id]; return s.status === 'active' && !s.snoozeUntil; };
 function visibleInGroup(g){
   let arr = THREADS.filter(t => t.group === g && isVisible(t));
-  if(state.sort === 'value') arr.sort((a,b) => (b.amount - a.amount) || (b.age - a.age));
+  if(state.sort === 'value') arr.sort((a,b) => (b.projValue - a.projValue) || (b.age - a.age));
   else arr.sort((a,b) => (b.age - a.age) || (b.amount - a.amount));
   return arr;
 }
@@ -954,7 +974,8 @@ function rowHTML(t){
   const health = (t.health === 'declining')
     ? '<span class="r-health">'+ICO.trend+'Πτωτική τάση</span>' : '';
   const amount = t.amount > 0
-    ? '<span class="r-amount">'+esc(euro(t.amount))+'</span>' : '';
+    ? '<span class="r-amount">'+esc(euro(t.amount))+'</span>'
+    : '<span class="r-projval"><i>έργο</i>'+esc(euro(t.projValue))+'</span>';
   return '<button class="row" type="button" data-id="'+t.id+'" style="--pc:'+t.color+'" '+
       'aria-label="'+esc(t.client+' — '+t.subject+'. '+agingText(t)+'. '+URG_LABEL[u])+'">'+
     '<span class="r-dot '+u+'" aria-hidden="true"></span>'+
@@ -992,7 +1013,7 @@ function renderGroups(){
         '<span class="g-cnt" aria-label="'+rows.length+' εκκρεμότητες">'+rows.length+'</span>'+
         ICO.chev +
       '</button>'+
-      '<div class="grp-body" id="body-'+g+'"'+(collapsed?' hidden':'')+'>'+ body +'</div>'+
+      '<div class="grp-body'+(collapsed?' collapsed':'')+'" id="body-'+g+'"'+(collapsed?' inert':'')+'>'+ body +'</div>'+
     '</section>';
   }).join('');
 }
@@ -1262,8 +1283,17 @@ function wire(){
     const head = e.target.closest('.grp-head');
     if(head){
       const g = head.dataset.grp;
-      state.collapsed[g] = !state.collapsed[g];
-      save(); renderGroups();
+      const now = !state.collapsed[g];
+      state.collapsed[g] = now;
+      save();
+      const body = document.getElementById('body-' + g);
+      if(body){
+        body.classList.toggle('collapsed', now);
+        body.inert = now;
+        head.setAttribute('aria-expanded', String(!now));
+      } else {
+        renderGroups();
+      }
       return;
     }
     const row = e.target.closest('.row');
@@ -1278,6 +1308,42 @@ function wire(){
 
   /* drawer close */
   $('#dClose').addEventListener('click', closeDrawer);
+
+  /* Drag-to-dismiss on the bottom sheet. The grab handle drawn on .d-head at
+     <=560px is a universally-understood affordance and was wired to nothing;
+     this makes it real. Pointer events only, no library. */
+  (function wireSheetDrag(){
+    const head = document.querySelector('.d-head');
+    const drawer = $('#drawer');
+    if(!head || !drawer) return;
+    let startY = 0, dy = 0, dragging = false;
+    const isSheet = () => window.matchMedia('(max-width:560px)').matches;
+
+    head.addEventListener('pointerdown', e => {
+      if(!isSheet() || openId === null) return;
+      if(e.target.closest('button')) return;      /* let the close button be a button */
+      dragging = true; startY = e.clientY; dy = 0;
+      drawer.classList.add('dragging');
+      head.setPointerCapture(e.pointerId);
+    });
+    head.addEventListener('pointermove', e => {
+      if(!dragging) return;
+      dy = Math.max(0, e.clientY - startY);       /* downward only */
+      drawer.style.transform = 'translateY(' + dy + 'px)';
+    });
+    const end = e => {
+      if(!dragging) return;
+      dragging = false;
+      drawer.classList.remove('dragging');
+      drawer.style.transform = '';
+      try{ head.releasePointerCapture(e.pointerId); }catch(err){}
+      /* past a third of the sheet, or a decisive flick, dismisses it */
+      if(dy > drawer.getBoundingClientRect().height / 3) closeDrawer();
+      dy = 0;
+    };
+    head.addEventListener('pointerup', end);
+    head.addEventListener('pointercancel', end);
+  })();
   $('#overlay').addEventListener('click', closeDrawer);
   document.addEventListener('keydown', e => { if(e.key === 'Escape' && openId !== null) closeDrawer(); });
 
