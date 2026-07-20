@@ -36,9 +36,24 @@ python -m http.server 8000
 
 > Why serve it? The landing page opens each demo in an in-page viewer (an `iframe`). Some browsers restrict `iframe`s when a page is opened directly from the filesystem (`file://`). Over a local server (or once hosted) there's no such restriction. Either way, every card also has an **«Άνοιγμα σε νέα καρτέλα»** link that always works.
 
-## Publishing to GitHub
+## Publishing
 
-Because the folder is fully self-contained, you can publish it two ways:
+The site is a plain static bundle — `index.html` at the root, everything else relative. No build step, no dependencies, no environment variables.
+
+**Deploying on Vercel (current setup).** Import the GitHub repo at [vercel.com/new](https://vercel.com/new) and deploy with the defaults:
+
+| Setting | Value |
+| --- | --- |
+| Framework Preset | **Other** |
+| Build Command | *(leave empty)* |
+| Output Directory | *(leave empty — repo root)* |
+| Install Command | *(leave empty)* |
+
+Vercel serves `index.html` at `/` and each demo at `/demos/<slug>/index.html`. Every push to `main` redeploys automatically. Because all paths are relative, the site also works from any subpath or straight off the local filesystem.
+
+### Alternative: GitHub Pages
+
+Because the folder is fully self-contained, you can also publish it two ways:
 
 **A) As its own repository (cleanest — recommended).** The contents of this `laflow-showcase/` folder become the whole repo, so none of the studio's internal documents are ever exposed.
 
@@ -56,11 +71,8 @@ Then on GitHub: **Settings → Pages → Source: `main` / root** → your site g
 
 **B) As a subfolder of a larger repo.** Commit the folder as-is and point GitHub Pages at it (root or `/docs` per your setup), or use a Pages action. Note that publishing the *whole* parent studio repo would also publish its internal docs — option A avoids that.
 
-### Before you publish — one edit
-Open `index.html` and replace the placeholder contact details in the closing call-to-action:
-- the `href="#"` on the **«Κλείστε παρουσίαση»** button (e.g. a `mailto:` or a booking link), and
-- the `[Όνομα] · [τηλέφωνο] · [email]` line just below it.
-(Both are marked with a `TODO` comment in the HTML.)
+### Contact details — done
+The closing call-to-action carries the real contact details: the **«Κλείστε παρουσίαση»** button opens a `mailto:` with the subject «Παρουσίαση LandscapeFlow», and the line below it shows the name plus a clickable phone (`tel:`) and email. To change them later, edit the `.cta` block near the bottom of `index.html`.
 
 ## Notes
 
