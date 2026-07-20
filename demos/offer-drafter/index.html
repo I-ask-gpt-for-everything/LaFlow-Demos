@@ -226,7 +226,7 @@
   /* circular "dial" stepper */
   .stepper{display:flex;align-items:center;gap:8px}
   .stepper button{
-    width:36px;height:36px;min-width:36px;border-radius:50%;display:grid;place-items:center;line-height:1;
+    width:44px;height:44px;min-width:44px;border-radius:50%;display:grid;place-items:center;line-height:1;
     font-size:19px;font-weight:700;transition:background .13s,transform .12s;
   }
   .stepper button[data-step="1"],.stepper button[data-lstep="1"]{background:var(--forest);color:#fff;border:none}
@@ -398,7 +398,13 @@
   .grand{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;margin-top:8px;padding-top:13px;border-top:2px solid var(--forest)}
   .grand .gl{font-size:14.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;color:var(--forest)}
   .grand .gv{font-family:var(--serif);font-size:35px;font-weight:600;color:var(--forest);font-variant-numeric:tabular-nums;white-space:nowrap;margin-left:auto}
-  .comp-empty{background:#fff;border:1.5px dashed var(--line-strong);border-radius:var(--r-lg);padding:30px 20px;text-align:center;color:var(--ink-soft);font-size:16px;margin-top:20px}
+  .comp-empty{background:#fff;border:1.5px dashed var(--line-strong);border-radius:var(--r-lg);padding:30px 20px;text-align:center;color:var(--ink-soft);font-size:16px;margin-top:20px;display:flex;flex-direction:column;align-items:center;gap:7px}
+  .comp-empty .ce-t{font-family:var(--serif);font-size:20px;font-weight:600;color:var(--forest)}
+  .comp-empty .ce-d{font-size:14.5px}
+  .comp-empty .ce-cta{margin-top:7px;min-height:44px;padding:10px 20px;border-radius:var(--r-pill);border:1.5px solid var(--forest);background:var(--forest);color:var(--cream);font-weight:700;font-size:14.5px}
+  .comp-empty .ce-cta:hover{background:var(--forest-mid);border-color:var(--forest-mid)}
+  /* the catalog is a real pane on desktop, so the jump button is phone-only */
+  @media(min-width:1180px){ .comp-empty .ce-cta{display:none} }
 
   /* ============ 3. PREVIEW PANEL — the dark "stage" ============ */
   .preview{
@@ -539,11 +545,12 @@
     .composer{padding:16px 12px calc(16px + var(--mnav-h))}
     .preview{padding:14px 8px calc(40px + var(--mnav-h))}
     .stage-bar{margin-bottom:12px}
-    /* A4 keeps its design width and is zoomed to fit its panel —
-       readable, no horizontal page scroll */
-    .sheet{width:560px;max-width:none;margin:0 auto;zoom:.58}
+    /* On a phone the sheet reflows to full width at its natural type size
+       instead of being scaled down to ~8px. The A4 aspect ratio is dropped here
+       too — on screen it only produced a tall empty page below the content. */
+    .sheet{width:auto;max-width:none;margin:0;zoom:1;aspect-ratio:auto;padding:28px 20px 32px;border-radius:2px}
   }
-  @media(max-width:359px){ .sheet{zoom:.48} }
+  @media(max-width:359px){ .sheet{padding:22px 15px 26px} }
 
   /* prefers-reduced-motion: kill shimmer/typing-caret/pane-fade animation;
      everything still works, just without motion (JS also skips the
@@ -572,6 +579,10 @@
     }
     .sh-head,.sh-title,.sh-totals,.sh-terms,.sh-sign,.sh-foot{break-inside:avoid}
     .sh-table tr{break-inside:avoid}
+    /* a section table split across pages was losing its column headers */
+    .sh-table thead{display:table-header-group}
+    .sh-table tfoot{display:table-footer-group}
+    .sh-totals{break-before:avoid}
     .sh-sec .h{break-after:avoid}
     .typing::after{display:none}
     *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -1226,7 +1237,13 @@ function renderProjCard(){
 function renderComposerBody(){
   const d = curDraft();
   if(!d.lines.length){
-    $('#compBody').innerHTML = `<div class="comp-empty">Η προσφορά είναι άδεια.<br>Προσθέστε είδη από τον κατάλογο αριστερά.</div>`;
+    /* Below 1180px the catalog is a hidden pane, so "on the left" pointed at
+       nothing. Give the phone layout a button that actually goes there. */
+    $('#compBody').innerHTML = `<div class="comp-empty">
+        <span class="ce-t">Η προσφορά είναι άδεια.</span>
+        <span class="ce-d">Διαλέξτε είδη από τον κατάλογο για να ξεκινήσετε.</span>
+        <button class="ce-cta" type="button" data-goto="catalog">Άνοιγμα καταλόγου</button>
+      </div>`;
     $('#compBody').removeAttribute('data-sec-count');
     return;
   }
@@ -1724,6 +1741,14 @@ function attachEvents(){
   $('#mobileNav').addEventListener('click', e=>{
     const b = e.target.closest('button[data-view]'); if(!b) return;
     setMobileView(b.dataset.view);
+  });
+
+  /* empty-ledger CTA: on a phone the catalog is a hidden pane, so the empty
+     state needs a way to actually get there. */
+  $('#compBody').addEventListener('click', e=>{
+    const go = e.target.closest('[data-goto]'); if(!go) return;
+    setMobileView(go.dataset.goto);
+    const q = $('#search'); if(q) q.focus();
   });
 }
 
