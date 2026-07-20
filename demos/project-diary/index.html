@@ -177,6 +177,8 @@
     position:relative;min-height:140px;border:1px solid var(--line);border-radius:12px;background:#fff;
     padding:9px;display:flex;flex-direction:column;gap:7px;text-align:left;cursor:pointer;
     transition:border-color .15s,box-shadow .15s,transform .15s;min-width:0;
+  }
+  #grid.stagger .cell{
     animation:cellIn .32s ease-out backwards;animation-delay:min(calc((var(--i,1) - 1) * 9ms),210ms);
   }
   @keyframes cellIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
@@ -454,10 +456,31 @@
     .p-add{padding:10px 14px 14px}
     .qa-btn{min-width:100%}
     .toast{bottom:14px}
+    /* the bottom sheet owns the bottom of the screen; a toast there lands on
+       the very button the user just pressed */
+    body.panel-open .toast{bottom:auto;top:calc(14px + env(safe-area-inset-top))}
   }
   @media(max-width:379px){
     .fchip{padding:8px 11px;font-size:14px;gap:6px}
     .cell{min-height:54px}
+  }
+
+  /* ---- print: a clean month sheet, not a screenshot of the app ---- */
+  @media print{
+    @page{size:A4 landscape;margin:12mm}
+    html.comfort{zoom:1 !important}
+    html,body{background:#fff !important;background-image:none !important}
+    .topbar,.overlay,.panel,.toast,.control-deck,.legend{display:none !important}
+    .page{padding:0;max-width:none}
+    .calcard{border:none;box-shadow:none;padding:0;background:#fff !important}
+    #grid{gap:3px}
+    #grid.stagger .cell{animation:none}
+    .cell{min-height:96px;break-inside:avoid;border-color:#c9d2c6;box-shadow:none}
+    .cell.out{display:none}
+    .dowrow{break-after:avoid}
+    .evchip{border:1px solid #d6ddd3}
+    .more{display:none}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   }
 
   /* prefers-reduced-motion: kill shimmer/typing-caret/drawer/stagger animation;
@@ -929,7 +952,14 @@ function renderCalendar(){
   for (let i = 1; i <= trail; i++){
     html += '<div class="cell out" aria-hidden="true"><span class="dhead"><span class="dnum">' + i + '</span></span></div>';
   }
-  $('#grid').innerHTML = html;
+  /* Only stagger when the month actually changed. A filter toggle re-renders the
+     same month, and replaying the wipe there reads as "everything changed" when
+     in fact one chip moved. */
+  const gridEl = $('#grid');
+  const key = y + '-' + m;
+  gridEl.classList.toggle('stagger', key !== renderCalendar._lastKey);
+  renderCalendar._lastKey = key;
+  gridEl.innerHTML = html;
 
   const visible = monthEntries(y, m, true).length;
   $('#visCount').textContent = plur(visible, 'καταχώριση', 'καταχωρίσεις') + ' με τα τρέχοντα φίλτρα';
@@ -946,6 +976,7 @@ function openPanel(p){
   lastFocus = document.activeElement;
   buildPanel();
   document.body.classList.add('panel-open');
+  setBg(true);
   $('#panel').setAttribute('aria-hidden', 'false');
   $('#pBody').scrollTop = 0;
   const c = $('#pClose'); if (c) c.focus();
@@ -956,7 +987,23 @@ function closePanel(){
   aiToken++; aiBusy = false;
   document.body.classList.remove('panel-open');
   $('#panel').setAttribute('aria-hidden', 'true');
+  setBg(false);
   if (lastFocus && document.contains(lastFocus)) lastFocus.focus();
+}
+
+/* The panel is role="dialog" aria-modal="true", which tells assistive tech the
+   background is inert — but nothing made it so. inert on the page and the topbar
+   takes the calendar out of the tab order and the a11y tree for real. Focus is
+   always moved out first, so we never inert a container still holding focus. */
+function setBg(off){
+  const page = document.querySelector('.page');
+  const bar  = document.querySelector('.topbar');
+  [page, bar].forEach(el => {
+    if(!el) return;
+    if(off && el.contains(document.activeElement)) document.activeElement.blur();
+    try{ el.inert = off; }catch(e){}
+    if(off) el.setAttribute('inert',''); else el.removeAttribute('inert');
+  });
 }
 
 function panelColor(){
