@@ -324,6 +324,12 @@
   .sent{border-radius:4px;transition:background .3s;box-decoration-break:clone;-webkit-box-decoration-break:clone}
   .sent-in{background:rgba(138,154,91,.32)}
   .sent-out{background:rgba(156,63,43,.16);text-decoration:line-through;text-decoration-color:var(--danger)}
+  /* The topbar's demo tag disappears below 799px; this one never does, because
+     the panel beside it looks exactly like a real email to a real client. */
+  .sim-tag{margin-left:auto;flex:none;font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;font-weight:700;
+    color:var(--gold-deep);border:1px solid rgba(181,148,69,.5);background:rgba(181,148,69,.09);
+    padding:5px 10px;border-radius:999px;white-space:nowrap}
+  @media(max-width:379px){ .sim-tag{font-size:9.5px;letter-spacing:.1em;padding:4px 8px} }
   .mail-photos{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:6px 0 16px}
   .mp-cell{border:1px solid rgba(26,60,52,.14);border-radius:var(--r-sm);overflow:hidden;background:#fff;transition:box-shadow .3s}
   .mp-cell.sent-in{box-shadow:0 0 0 3px rgba(138,154,91,.55)}
@@ -671,6 +677,7 @@
         <div class="stage-label">
           <span class="step-badge" aria-hidden="true">4</span>
           <span class="ttl">Προεπισκόπηση &amp; αποστολή</span>
+          <span class="sim-tag">Προσομοίωση AI</span>
         </div>
 
         <div class="card">
@@ -1311,9 +1318,25 @@ function toast(msg){
 function toggleDelta(id){
   if(state.busy) return;
   const cs = curCS();
-  if(cs.sel.has(id)) cs.sel.delete(id); else cs.sel.add(id);
-  save(); renderDelta(); renderDraft(); updateCounts();
-  if(cs.sel.has(id)) flashSrc('d-' + id);
+  const removing = cs.sel.has(id);
+  const commit = () => {
+    save(); renderDelta(); renderDraft(); updateCounts();
+    if(!removing) flashSrc('d-' + id);
+  };
+  if(removing){
+    cs.sel.delete(id);
+    /* show the sentence leaving before it goes, instead of blinking out */
+    const el = document.querySelector('#mailBody [data-src="d-' + id + '"]');
+    if(el && !REDUCED()){
+      el.classList.add('sent-out');
+      setTimeout(commit, 340);
+      renderDelta(); updateCounts();   /* checkbox reacts immediately */
+      return;
+    }
+  } else {
+    cs.sel.add(id);
+  }
+  commit();
 }
 function togglePhoto(id){
   if(state.busy) return;
@@ -1372,6 +1395,16 @@ function editSubject(v){
 }
 function approve(){
   if(state.busy) return;
+  const cs0 = curCS();
+  if(!(cs0.subject || '').trim()){
+    toast('Συμπληρώστε πρώτα θέμα για το email.');
+    const si = $('#subjInput'); if(si){ si.focus(); si.select && si.select(); }
+    return;
+  }
+  if(cs0.sel.size === 0 && cs0.order.length === 0){
+    toast('Επιλέξτε τουλάχιστον μία εργασία ή φωτογραφία πριν την αποστολή.');
+    return;
+  }
   const btn = $('#approveBtn');
   const finish = () => {
     const p = curProj(), cs = curCS();
